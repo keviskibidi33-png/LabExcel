@@ -1,0 +1,35 @@
+# FastAPI y servidor
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Base de datos
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Procesamiento Excel
+openpyxl==3.1.2
+pandas==2.1.3
+xlrd==2.0.1
+
+# Validación y configuración
+pydantic==2.5.0
+python-dotenv==1.0.0
+
+# Tareas en segundo plano (opcional)
+celery==5.3.4
+redis==5.0.1
+
+# Utilidades
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dateutil==2.8.2
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# CORS
+fastapi-cors==0.0.6

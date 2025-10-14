@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: laboratorio_db
+    environment:
+      POSTGRES_DB: laboratorio_db
+      POSTGRES_USER: laboratorio_user
+      POSTGRES_PASSWORD: laboratorio_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - laboratorio_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U laboratorio_user -d laboratorio_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para Celery (opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: laboratorio_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - laboratorio_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: laboratorio_backend
+    environment:
+      - DATABASE_URL=postgresql://laboratorio_user:laboratorio_password@db:5432/laboratorio_db
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+      - ./archivos:/app/archivos
+      - temp_files:/app/temp
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - laboratorio_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: laboratorio_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - laboratorio_network
+
+  # Worker Celery (opcional para tareas en segundo plano)
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: laboratorio_celery
+    command: celery -A main.celery worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://laboratorio_user:laboratorio_password@db:5432/laboratorio_db
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - temp_files:/app/temp
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - laboratorio_network
+
+volumes:
+  postgres_data:
+  temp_files:
+
+networks:
+  laboratorio_network:
+    driver: bridge
