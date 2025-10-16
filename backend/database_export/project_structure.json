@@ -1,0 +1,119 @@
+{
+  "project_info": {
+    "name": "Geocreator - Sistema de Gestión de Laboratorio",
+    "version": "1.0.0",
+    "export_date": "2025-01-16T20:30:00",
+    "description": "Sistema para gestión de recepciones de muestras de concreto y generación de documentos Excel/PDF"
+  },
+  "database_structure": {
+    "tables": [
+      {
+        "name": "recepcion",
+        "description": "Tabla principal de recepciones de muestras",
+        "columns": [
+          {"name": "id", "type": "INTEGER", "primary_key": true},
+          {"name": "numero_ot", "type": "VARCHAR", "description": "Número de orden de trabajo"},
+          {"name": "numero_recepcion", "type": "VARCHAR", "description": "Número de recepción"},
+          {"name": "numero_cotizacion", "type": "VARCHAR", "description": "Número de cotización"},
+          {"name": "codigo_trazabilidad", "type": "VARCHAR", "description": "Código de trazabilidad"},
+          {"name": "asunto", "type": "VARCHAR", "description": "Asunto de la recepción"},
+          {"name": "cliente", "type": "VARCHAR", "description": "Nombre del cliente"},
+          {"name": "domicilio_legal", "type": "VARCHAR", "description": "Domicilio legal del cliente"},
+          {"name": "ruc", "type": "VARCHAR", "description": "RUC del cliente"},
+          {"name": "persona_contacto", "type": "VARCHAR", "description": "Persona de contacto"},
+          {"name": "email", "type": "VARCHAR", "description": "Email del cliente"},
+          {"name": "telefono", "type": "VARCHAR", "description": "Teléfono del cliente"},
+          {"name": "solicitante", "type": "VARCHAR", "description": "Solicitante del informe"},
+          {"name": "domicilio_solicitante", "type": "VARCHAR", "description": "Domicilio del solicitante"},
+          {"name": "proyecto", "type": "VARCHAR", "description": "Nombre del proyecto"},
+          {"name": "ubicacion", "type": "VARCHAR", "description": "Ubicación del proyecto"},
+          {"name": "fecha_recepcion", "type": "DATE", "description": "Fecha de recepción"},
+          {"name": "fecha_estimada_culminacion", "type": "DATE", "description": "Fecha estimada de culminación"},
+          {"name": "emision_fisica", "type": "BOOLEAN", "description": "Emisión física"},
+          {"name": "emision_digital", "type": "BOOLEAN", "description": "Emisión digital"},
+          {"name": "entregado_por", "type": "VARCHAR", "description": "Entregado por"},
+          {"name": "recibido_por", "type": "VARCHAR", "description": "Recibido por"},
+          {"name": "codigo_laboratorio", "type": "VARCHAR", "description": "Código del laboratorio"},
+          {"name": "version", "type": "VARCHAR", "description": "Versión del documento"},
+          {"name": "fecha_creacion", "type": "DATETIME", "description": "Fecha de creación"},
+          {"name": "fecha_actualizacion", "type": "DATETIME", "description": "Fecha de actualización"}
+        ]
+      },
+      {
+        "name": "muestras_concreto",
+        "description": "Tabla de muestras de concreto asociadas a recepciones",
+        "columns": [
+          {"name": "id", "type": "INTEGER", "primary_key": true},
+          {"name": "recepcion_id", "type": "INTEGER", "foreign_key": "recepcion.id"},
+          {"name": "item_numero", "type": "INTEGER", "description": "Número de item"},
+          {"name": "codigo_muestra", "type": "VARCHAR", "description": "Código de la muestra"},
+          {"name": "identificacion_muestra", "type": "VARCHAR", "description": "Identificación de la muestra"},
+          {"name": "estructura", "type": "VARCHAR", "description": "Estructura"},
+          {"name": "fc_kg_cm2", "type": "INTEGER", "description": "F'c en kg/cm²"},
+          {"name": "fecha_moldeo", "type": "DATE", "description": "Fecha de moldeo"},
+          {"name": "hora_moldeo", "type": "TIME", "description": "Hora de moldeo"},
+          {"name": "edad", "type": "INTEGER", "description": "Edad en días"},
+          {"name": "fecha_rotura", "type": "DATE", "description": "Fecha de rotura"},
+          {"name": "requiere_densidad", "type": "BOOLEAN", "description": "Requiere densidad"},
+          {"name": "fecha_creacion", "type": "DATETIME", "description": "Fecha de creación"},
+          {"name": "fecha_actualizacion", "type": "DATETIME", "description": "Fecha de actualización"}
+        ]
+      }
+    ]
+  },
+  "excel_mapping": {
+    "description": "Mapeo de campos del formulario a celdas del Excel",
+    "corrections_applied": "2025-01-16",
+    "mapping": {
+      "D4": {"field": "numero_recepcion", "label": "RECEPCIÓN N°"},
+      "G4": {"field": "fecha_recepcion", "label": "FECHA DE RECEPCIÓN"},
+      "D5": {"field": "numero_cotizacion", "label": "COTIZACIÓN N°"},
+      "G5": {"field": "numero_ot", "label": "OT N°"},
+      "D6": {"field": "asunto", "label": "ASUNTO"},
+      "G6": {"field": "codigo_trazabilidad", "label": "CÓDIGO DE TRAZABILIDAD"},
+      "D8": {"field": "ruc", "label": "Cliente (CORREGIDO: RUC va aquí)"},
+      "D9": {"field": "domicilio_legal", "label": "Domicilio legal"},
+      "D10": {"field": "email", "label": "RUC (CORREGIDO: Email va aquí)"},
+      "D11": {"field": "persona_contacto", "label": "Persona contacto"},
+      "D12": {"field": "cliente", "label": "E-MAIL (CORREGIDO: Cliente va aquí)"},
+      "D13": {"field": "telefono", "label": "Teléfono"},
+      "D16": {"field": "solicitante", "label": "Solicitante"},
+      "D17": {"field": "domicilio_solicitante", "label": "Domicilio solicitante"},
+      "D18": {"field": "proyecto", "label": "Proyecto"},
+      "D19": {"field": "ubicacion", "label": "Ubicación"},
+      "G15": {"field": "fecha_estimada_culminacion", "label": "Fecha estimada"},
+      "D21": {"field": "emision_fisica", "label": "Emisión física (X si True)"},
+      "D22": {"field": "emision_digital", "label": "Emisión digital (X si True)"},
+      "D24": {"field": "entregado_por", "label": "Entregado por"},
+      "G24": {"field": "recibido_por", "label": "Recibido por"}
+    },
+    "samples_table": {
+      "start_row": 26,
+      "columns": {
+        "A": "Número de item (empieza en 1, no en 4)",
+        "B": "Código muestra LEM (no se llena)",
+        "C": "Identificación de muestra",
+        "D": "Estructura",
+        "E": "F'c (kg/cm²)",
+        "F": "Fecha moldeo",
+        "G": "Hora de moldeo",
+        "H": "Edad",
+        "I": "Fecha rotura",
+        "J": "Requiere densidad (SI/NO)"
+      }
+    }
+  },
+  "recent_changes": [
+    {
+      "date": "2025-01-16",
+      "description": "Corrección de mapeo de campos en Excel",
+      "changes": [
+        "RUC ahora va en campo 'Cliente' (D8)",
+        "Email ahora va en campo 'RUC' (D10)",
+        "Cliente ahora va en campo 'E-MAIL' (D12)",
+        "Items empiezan en 1, no en 4",
+        "Eliminación de caracteres extraños"
+      ]
+    }
+  ]
+}

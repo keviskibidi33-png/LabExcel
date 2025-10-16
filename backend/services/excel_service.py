@@ -14,14 +14,14 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
-from models import OrdenTrabajo, ItemOrden
-from schemas import OrdenTrabajoCreate, ItemOrdenCreate
+from models import RecepcionMuestra, MuestraConcreto
+from schemas import RecepcionMuestraCreate, MuestraConcretoCreate
 
 class ExcelService:
     def __init__(self):
         self.template_path = "templates/orden_trabajo_template.xlsx"
     
-    def procesar_archivo_excel(self, contenido: bytes, db: Session) -> OrdenTrabajo:
+    def procesar_archivo_excel(self, contenido: bytes, db: Session) -> RecepcionMuestra:
         """Procesar archivo Excel subido y crear orden de trabajo"""
         try:
             # Leer archivo Excel
@@ -34,19 +34,19 @@ class ExcelService:
             items_data = self._extraer_items(df)
             
             # Crear orden en base de datos
-            orden = OrdenTrabajo(**orden_data)
-            db.add(orden)
+            recepcion = RecepcionMuestra(**orden_data)
+            db.add(recepcion)
             db.flush()  # Para obtener el ID
             
             # Crear items
             for item_data in items_data:
-                item = ItemOrden(orden_id=orden.id, **item_data)
+                item = MuestraConcreto(recepcion_id=recepcion.id, **item_data)
                 db.add(item)
             
             db.commit()
-            db.refresh(orden)
+            db.refresh(recepcion)
             
-            return orden
+            return recepcion
             
         except Exception as e:
             db.rollback()
@@ -135,104 +135,16 @@ class ExcelService:
         
         return items
     
-    def generar_plantilla_excel(self, orden: OrdenTrabajo) -> str:
-        """Generar plantilla Excel prellenada para una orden"""
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Orden de Trabajo"
+    def generar_plantilla_excel(self, recepcion: RecepcionMuestra = None) -> str:
+        """Generar plantilla Excel basada en el diseño del PDF"""
+        from templates.recepcion_muestra_template import RecepcionMuestraTemplate
         
-        # Configurar estilos
-        header_font = Font(bold=True, size=12)
-        title_font = Font(bold=True, size=14)
-        border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        template = RecepcionMuestraTemplate()
+        wb = template.crear_plantilla_vacia()
         
-        # Encabezado
-        ws['A1'] = "ORDEN DE TRABAJO"
-        ws['A1'].font = title_font
-        ws.merge_cells('A1:J1')
-        
-        # Información de la orden
-        ws['A3'] = "CÓDIGO:"
-        ws['B3'] = orden.codigo_laboratorio
-        ws['A4'] = "VERSIÓN:"
-        ws['B4'] = orden.version
-        ws['A5'] = "FECHA:"
-        ws['B5'] = datetime.now().strftime("%d/%m/%Y")
-        ws['A6'] = "PÁGINA:"
-        ws['B6'] = "1 de 1"
-        
-        # Datos principales
-        ws['A8'] = f"N° OT: {orden.numero_ot}"
-        ws['E8'] = f"N° RECEPCIÓN: {orden.numero_recepcion}"
-        ws['G8'] = f"REFERENCIA: {orden.referencia or '-'}"
-        
-        # Encabezados de tabla
-        ws['A10'] = "ÍTEM"
-        ws['B10'] = "CÓDIGO DE MUESTRA"
-        ws['D10'] = "DESCRIPCIÓN"
-        ws['H10'] = "CANTIDAD"
-        
-        # Aplicar estilos a encabezados
-        for cell in ['A10', 'B10', 'D10', 'H10']:
-            ws[cell].font = header_font
-            ws[cell].border = border
-        
-        # Llenar items
-        row = 11
-        for item in orden.items:
-            ws[f'A{row}'] = item.item_numero
-            ws[f'B{row}'] = item.codigo_muestra
-            ws[f'D{row}'] = item.descripcion
-            ws[f'H{row}'] = item.cantidad
-            if item.especificacion:
-                ws[f'I{row}'] = item.especificacion
-            
-            # Aplicar bordes
-            for col in ['A', 'B', 'D', 'H', 'I']:
-                ws[f'{col}{row}'].border = border
-            
-            row += 1
-        
-        # Sección de fechas y plazos
-        fecha_row = row + 2
-        ws[f'A{fecha_row}'] = "FECHA DE RECEPCIÓN:"
-        ws[f'C{fecha_row}'] = orden.fecha_recepcion.strftime("%d/%m/%Y") if orden.fecha_recepcion else ""
-        ws[f'E{fecha_row}'] = "INICIO PROGRAMADO:"
-        ws[f'G{fecha_row}'] = orden.fecha_inicio_programado.strftime("%d/%m/%Y") if orden.fecha_inicio_programado else ""
-        
-        ws[f'A{fecha_row+1}'] = "PLAZO DE ENTREGA (DIAS):"
-        ws[f'C{fecha_row+1}'] = orden.plazo_entrega_dias or ""
-        ws[f'E{fecha_row+1}'] = "FIN PROGRAMADO:"
-        ws[f'G{fecha_row+1}'] = orden.fecha_fin_programado.strftime("%d/%m/%Y") if orden.fecha_fin_programado else ""
-        
-        # Observaciones
-        obs_row = fecha_row + 3
-        ws[f'A{obs_row}'] = "OBSERVACIONES:"
-        if orden.observaciones:
-            ws[f'B{obs_row}'] = orden.observaciones
-        
-        # Responsables
-        resp_row = obs_row + 3
-        ws[f'A{resp_row}'] = "O/T APERTURADA POR:"
-        ws[f'C{resp_row}'] = orden.aperturada_por or ""
-        ws[f'E{resp_row}'] = "OT DESIGNADA A:"
-        ws[f'G{resp_row}'] = orden.designada_a or ""
-        
-        # Ajustar ancho de columnas
-        ws.column_dimensions['A'].width = 8
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 15
-        ws.column_dimensions['D'].width = 30
-        ws.column_dimensions['E'].width = 18
-        ws.column_dimensions['F'].width = 15
-        ws.column_dimensions['G'].width = 15
-        ws.column_dimensions['H'].width = 10
-        ws.column_dimensions['I'].width = 15
+        # Si se proporciona una orden, prellenar los datos
+        if recepcion:
+            self._prellenar_datos_recepcion(wb, recepcion)
         
         # Guardar archivo temporal
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
@@ -241,11 +153,50 @@ class ExcelService:
         
         return temp_file.name
     
+    def _prellenar_datos_recepcion(self, wb, recepcion: RecepcionMuestra):
+        """Prellenar la plantilla de recepción con datos de una orden existente"""
+        ws = wb.active
+        
+        # Datos principales
+        if recepcion.numero_recepcion:
+            ws['C8'] = recepcion.numero_recepcion
+        if recepcion.fecha_recepcion:
+            ws['H8'] = recepcion.fecha_recepcion.strftime("%d/%m/%Y")
+        if recepcion.numero_ot:
+            ws['H9'] = recepcion.numero_ot
+        
+        # Llenar muestras
+        row = 24
+        for item in recepcion.muestras:
+            if row <= 43:  # Máximo 20 muestras
+                ws[f'B{row}'] = item.codigo_muestra
+                ws[f'C{row}'] = getattr(item, 'identificacion_muestra', '')
+                ws[f'E{row}'] = getattr(item, 'estructura', '')
+                ws[f'F{row}'] = getattr(item, 'fc_kg_cm2', 280)
+                if hasattr(item, 'fecha_moldeo') and item.fecha_moldeo:
+                    ws[f'G{row}'] = item.fecha_moldeo.strftime("%d/%m/%y")
+                if hasattr(item, 'hora_moldeo') and item.hora_moldeo:
+                    ws[f'H{row}'] = item.hora_moldeo
+                ws[f'I{row}'] = getattr(item, 'edad', 10)
+                if hasattr(item, 'fecha_rotura') and item.fecha_rotura:
+                    ws[f'J{row}'] = item.fecha_rotura.strftime("%d/%m/%y")
+                row += 1
+        
+        # Fecha estimada de culminación
+        if orden.fecha_fin_programado:
+            ws['F47'] = orden.fecha_fin_programado.strftime("%d/%m/%Y")
+        
+        # Responsables
+        if orden.aperturada_por:
+            ws['D50'] = orden.aperturada_por
+        if orden.designada_a:
+            ws['D51'] = orden.designada_a
+    
     def exportar_ordenes(self, orden_ids: List[int], db: Session) -> str:
         """Exportar múltiples órdenes a un archivo Excel"""
-        ordenes = db.query(OrdenTrabajo).filter(OrdenTrabajo.id.in_(orden_ids)).all()
+        recepciones = db.query(RecepcionMuestra).filter(RecepcionMuestra.id.in_(orden_ids)).all()
         
-        if not ordenes:
+        if not recepciones:
             raise Exception("No se encontraron órdenes para exportar")
         
         wb = openpyxl.Workbook()
@@ -263,21 +214,21 @@ class ExcelService:
             ws_resumen.cell(row=1, column=col).font = Font(bold=True)
         
         # Llenar datos del resumen
-        for row, orden in enumerate(ordenes, 2):
-            ws_resumen.cell(row=row, column=1, value=orden.id)
-            ws_resumen.cell(row=row, column=2, value=orden.numero_ot)
-            ws_resumen.cell(row=row, column=3, value=orden.numero_recepcion)
-            ws_resumen.cell(row=row, column=4, value=orden.referencia or "")
-            ws_resumen.cell(row=row, column=5, value=orden.fecha_creacion.strftime("%d/%m/%Y"))
-            ws_resumen.cell(row=row, column=6, value=orden.estado)
-            ws_resumen.cell(row=row, column=7, value=len(orden.items))
-            ws_resumen.cell(row=row, column=8, value=orden.aperturada_por or "")
-            ws_resumen.cell(row=row, column=9, value=orden.designada_a or "")
+        for row, recepcion in enumerate(recepciones, 2):
+            ws_resumen.cell(row=row, column=1, value=recepcion.id)
+            ws_resumen.cell(row=row, column=2, value=recepcion.numero_ot)
+            ws_resumen.cell(row=row, column=3, value=recepcion.numero_recepcion)
+            ws_resumen.cell(row=row, column=4, value=recepcion.codigo_trazabilidad or "")
+            ws_resumen.cell(row=row, column=5, value=recepcion.fecha_creacion.strftime("%d/%m/%Y"))
+            ws_resumen.cell(row=row, column=6, value=recepcion.estado)
+            ws_resumen.cell(row=row, column=7, value=len(recepcion.muestras))
+            ws_resumen.cell(row=row, column=8, value=recepcion.aperturada_por or "")
+            ws_resumen.cell(row=row, column=9, value=recepcion.designada_a or "")
         
-        # Crear hoja para cada orden
-        for orden in ordenes:
-            ws = wb.create_sheet(title=f"OT-{orden.numero_ot}")
-            self._llenar_hoja_orden(ws, orden)
+        # Crear hoja para cada recepción
+        for recepcion in recepciones:
+            ws = wb.create_sheet(title=f"OT-{recepcion.numero_ot}")
+            self._llenar_hoja_orden(ws, recepcion)
         
         # Guardar archivo temporal
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
@@ -286,7 +237,7 @@ class ExcelService:
         
         return temp_file.name
     
-    def _llenar_hoja_orden(self, ws, orden: OrdenTrabajo):
+    def _llenar_hoja_orden(self, ws, recepcion: RecepcionMuestra):
         """Llenar una hoja con los datos de una orden específica"""
         # Implementar llenado de hoja individual
         # Similar a generar_plantilla_excel pero para exportación

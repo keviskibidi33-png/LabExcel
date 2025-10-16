@@ -57,13 +57,30 @@ export interface ItemOrden {
   especificacion?: string
 }
 
-export interface OrdenTrabajoCreate {
+export interface RecepcionMuestraCreate {
   numero_ot: string
   numero_recepcion: string
-  referencia?: string
+  numero_cotizacion?: string
+  codigo_trazabilidad?: string
+  asunto: string
+  cliente: string
+  domicilio_legal: string
+  ruc: string
+  persona_contacto: string
+  email: string
+  telefono: string
+  solicitante: string
+  domicilio_solicitante: string
+  proyecto: string
+  ubicacion: string
+  fecha_recepcion?: string
+  fecha_estimada_culminacion?: string
+  emision_fisica: boolean
+  emision_digital: boolean
+  entregado_por?: string
+  recibido_por?: string
   codigo_laboratorio?: string
   version?: string
-  fecha_recepcion?: string
   fecha_inicio_programado?: string
   fecha_inicio_real?: string
   fecha_fin_programado?: string
@@ -74,15 +91,20 @@ export interface OrdenTrabajoCreate {
   aperturada_por?: string
   designada_a?: string
   estado?: string
-  items: ItemOrdenCreate[]
+  muestras: MuestraConcretoCreate[]
 }
 
-export interface ItemOrdenCreate {
+export interface MuestraConcretoCreate {
   item_numero: number
   codigo_muestra: string
-  descripcion: string
-  cantidad: number
-  especificacion?: string
+  identificacion_muestra: string
+  estructura: string
+  fc_kg_cm2: number
+  fecha_moldeo: string
+  hora_moldeo?: string
+  edad: number
+  fecha_rotura: string
+  requiere_densidad: boolean
 }
 
 export interface DashboardStats {
@@ -140,10 +162,11 @@ export const apiService = {
     )
   },
 
-  createOrden: async (orden: OrdenTrabajoCreate): Promise<OrdenTrabajo> => {
+  createOrden: async (orden: RecepcionMuestraCreate): Promise<RecepcionMuestraCreate> => {
     return handleApiCall(
       async () => {
         const response = await api.post('/api/ordenes/', orden)
+        console.log('Recepción creada exitosamente:', response.data)
         return response.data
       },
       () => databaseService.createOrden(orden)
@@ -211,6 +234,21 @@ export const apiService = {
     )
   },
 
+  // Nuevas funciones para PDF y Excel
+  downloadPDF: async (recepcionId: number): Promise<Blob> => {
+    const response = await api.get(`/api/ordenes/${recepcionId}/pdf`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  downloadExcel: async (recepcionId: number): Promise<Blob> => {
+    const response = await api.get(`/api/ordenes/${recepcionId}/excel`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
   // Búsqueda
   searchOrdenes: async (termino: string): Promise<OrdenTrabajo[]> => {
     return handleApiCall(
@@ -234,3 +272,17 @@ export const downloadFile = (blob: Blob, filename: string) => {
   document.body.removeChild(link)
   window.URL.revokeObjectURL(url)
 }
+
+// Exportar funciones individuales para facilitar el uso
+export const { 
+  getOrdenes, 
+  getOrden, 
+  createOrden, 
+  updateOrden, 
+  deleteOrden,
+  uploadExcel,
+  downloadTemplate,
+  exportOrdenes,
+  downloadPDF,
+  downloadExcel
+} = apiService

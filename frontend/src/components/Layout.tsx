@@ -5,6 +5,7 @@ import {
   DocumentTextIcon, 
   CloudArrowUpIcon, 
   CloudArrowDownIcon,
+  PlusIcon,
   Bars3Icon,
   XMarkIcon
 } from '@heroicons/react/24/outline'
@@ -17,6 +18,7 @@ interface LayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Órdenes', href: '/ordenes', icon: DocumentTextIcon },
+  { name: 'Nueva Recepción', href: '/nueva-orden', icon: PlusIcon },
   { name: 'Subir Excel', href: '/upload', icon: CloudArrowUpIcon },
   { name: 'Exportar', href: '/export', icon: CloudArrowDownIcon },
 ]

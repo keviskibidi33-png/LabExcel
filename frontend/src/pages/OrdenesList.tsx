@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query'
+import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { Link } from 'react-router-dom'
 import { 
   DocumentTextIcon, 
@@ -6,7 +6,8 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   PencilIcon,
-  TrashIcon
+  TrashIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { apiService } from '../services/api'
@@ -15,6 +16,12 @@ import toast from 'react-hot-toast'
 export default function OrdenesList() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedOrdenes, setSelectedOrdenes] = useState<number[]>([])
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [ordenToDelete, setOrdenToDelete] = useState<number | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteMultipleModal, setShowDeleteMultipleModal] = useState(false)
+
+  const queryClient = useQueryClient()
 
   const { data: ordenes, isLoading, refetch } = useQuery(
     'ordenes',
@@ -22,6 +29,44 @@ export default function OrdenesList() {
     {
       onError: (error: any) => {
         toast.error(`Error cargando órdenes: ${error.message}`)
+      }
+    }
+  )
+
+  // Mutación para eliminar una orden
+  const deleteOrdenMutation = useMutation(apiService.deleteOrden, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('ordenes')
+      toast.success('Recepción eliminada exitosamente')
+      setShowDeleteModal(false)
+      setOrdenToDelete(null)
+    },
+    onError: (error: any) => {
+      toast.error(`Error al eliminar recepción: ${error.message}`)
+    },
+    onSettled: () => {
+      setIsDeleting(false)
+    }
+  })
+
+  // Mutación para eliminar múltiples órdenes
+  const deleteMultipleMutation = useMutation(
+    async (ids: number[]) => {
+      const deletePromises = ids.map(id => apiService.deleteOrden(id))
+      await Promise.all(deletePromises)
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('ordenes')
+        toast.success(`${selectedOrdenes.length} recepciones eliminadas exitosamente`)
+        setSelectedOrdenes([])
+        setShowDeleteMultipleModal(false)
+      },
+      onError: (error: any) => {
+        toast.error(`Error al eliminar recepciones: ${error.message}`)
+      },
+      onSettled: () => {
+        setIsDeleting(false)
       }
     }
   )
@@ -46,6 +91,43 @@ export default function OrdenesList() {
     } else {
       setSelectedOrdenes(filteredOrdenes.map(orden => orden.id))
     }
+  }
+
+  // Función para eliminar una orden individual
+  const handleDeleteOrden = (ordenId: number) => {
+    setOrdenToDelete(ordenId)
+    setShowDeleteModal(true)
+  }
+
+  // Función para confirmar eliminación individual
+  const confirmDeleteOrden = async () => {
+    if (ordenToDelete) {
+      setIsDeleting(true)
+      deleteOrdenMutation.mutate(ordenToDelete)
+    }
+  }
+
+  // Función para eliminar múltiples órdenes
+  const handleDeleteMultiple = async () => {
+    if (selectedOrdenes.length === 0) return
+    setShowDeleteMultipleModal(true)
+  }
+
+  // Función para confirmar eliminación múltiple
+  const confirmDeleteMultiple = async () => {
+    setIsDeleting(true)
+    deleteMultipleMutation.mutate([...selectedOrdenes])
+  }
+
+  // Función para cancelar eliminación
+  const cancelDelete = () => {
+    setShowDeleteModal(false)
+    setOrdenToDelete(null)
+  }
+
+  // Función para cancelar eliminación múltiple
+  const cancelDeleteMultiple = () => {
+    setShowDeleteMultipleModal(false)
   }
 
   const getEstadoColor = (estado: string) => {
@@ -117,9 +199,31 @@ export default function OrdenesList() {
               {filteredOrdenes.length} órdenes encontradas
             </span>
             {selectedOrdenes.length > 0 && (
-              <span className="text-sm text-primary-600">
-                {selectedOrdenes.length} seleccionadas
-              </span>
+              <>
+                <span className="text-sm text-primary-600">
+                  {selectedOrdenes.length} seleccionadas
+                </span>
+                <button
+                  onClick={handleDeleteMultiple}
+                  disabled={isDeleting}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                >
+                  {isDeleting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="h-4 w-4 mr-2" />
+                      Eliminar Seleccionadas
+                    </>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -181,20 +285,22 @@ export default function OrdenesList() {
                     <div className="flex space-x-2">
                       <Link
                         to={`/ordenes/${orden.id}`}
-                        className="text-primary-600 hover:text-primary-900"
-                        title="Ver detalles"
+                        className="p-2 text-primary-600 hover:text-primary-900 hover:bg-primary-50 rounded-lg transition-colors duration-200"
+                        title="Ver detalles de la recepción"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </Link>
                       <button
-                        className="text-gray-600 hover:text-gray-900"
-                        title="Editar"
+                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                        title="Editar recepción"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
-                        className="text-red-600 hover:text-red-900"
-                        title="Eliminar"
+                        onClick={() => handleDeleteOrden(orden.id)}
+                        disabled={isDeleting}
+                        className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                        title="Eliminar recepción"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -232,6 +338,146 @@ export default function OrdenesList() {
           )}
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminación individual */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all">
+            {/* Header del modal */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Contenido del modal */}
+            <div className="px-6 py-6">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  ¿Eliminar Recepción?
+                </h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Esta acción eliminará permanentemente la recepción seleccionada y todos sus datos asociados. 
+                  <span className="font-medium text-red-600"> Esta acción no se puede deshacer.</span>
+                </p>
+              </div>
+
+              {/* Información adicional */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="flex items-center text-sm text-gray-600">
+                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0" />
+                  <span>
+                    Se eliminarán también todas las muestras asociadas a esta recepción.
+                  </span>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteOrden}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                >
+                  {isDeleting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-4 h-4 mr-2" />
+                      Eliminar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminación múltiple */}
+      {showDeleteMultipleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all">
+            {/* Header del modal */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Contenido del modal */}
+            <div className="px-6 py-6">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  ¿Eliminar {selectedOrdenes.length} Recepciones?
+                </h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Esta acción eliminará permanentemente <span className="font-medium text-red-600">{selectedOrdenes.length}</span> recepciones seleccionadas y todos sus datos asociados. 
+                  <span className="font-medium text-red-600"> Esta acción no se puede deshacer.</span>
+                </p>
+              </div>
+
+              {/* Información adicional */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="flex items-center text-sm text-gray-600">
+                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0" />
+                  <span>
+                    Se eliminarán también todas las muestras asociadas a estas recepciones.
+                  </span>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelDeleteMultiple}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteMultiple}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                >
+                  {isDeleting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-4 h-4 mr-2" />
+                      Eliminar {selectedOrdenes.length}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

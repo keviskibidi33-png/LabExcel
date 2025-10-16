@@ -1,97 +1,93 @@
-# Sistema de Gestión Excel - Laboratorio
+# 🧪 Sistema de Gestión Excel - Laboratorio
 
-Sistema automatizado de gestión y manipulación de archivos Excel para laboratorio, desarrollado con FastAPI y React.
+Sistema automatizado de gestión y manipulación de archivos Excel para laboratorio, desarrollado con FastAPI y React. Permite la creación, gestión y exportación de recepciones de muestras de concreto con generación automática de PDF y Excel.
 
-## ⚠️ Estado Actual del Proyecto
+## ✨ Características Principales
 
-**🚨 IMPORTANTE:** Este proyecto está en desarrollo activo y presenta errores críticos en el frontend React. Ver [ISSUES.md](./ISSUES.md) para detalles completos de los problemas conocidos.
+- **📋 Formulario de Recepción**: Creación de recepciones de muestras cilíndricas de concreto
+- **📊 Generación de Archivos**: Exportación automática a PDF y Excel (MEGAMINTAJE)
+- **🔍 Validación Robusta**: Validación completa de datos y formatos
+- **🎨 Interfaz Moderna**: SPA responsiva con React y TailwindCSS
+- **⚡ API REST**: Backend asíncrono con FastAPI
+- **🗄️ Base de Datos**: PostgreSQL con SQLAlchemy ORM
+- **🐳 Contenedorización**: Docker y docker-compose para despliegue
+- **📱 PWA**: Soporte para uso offline
 
-### Errores Críticos:
-- ❌ **React Hooks Error**: El frontend presenta errores de hooks que impiden el funcionamiento
-- ⚠️ **Backend no probado**: FastAPI configurado pero no ejecutado
-- ✅ **Base de datos**: PostgreSQL funcionando con datos reales
-- ✅ **Proxy DB**: Funcionando correctamente en puerto 3001
-
-### Componentes Funcionando:
-- ✅ Proxy de base de datos (puerto 3001)
-- ✅ Base de datos PostgreSQL con datos reales
-- ✅ Estructura del proyecto completa
-
-## 🚀 Características
-
-- **Importación de Excel**: Procesamiento automático de archivos Excel de órdenes de trabajo
-- **Exportación de datos**: Generación de plantillas y exportación de múltiples órdenes
-- **Validación robusta**: Validación de formatos y estructura de archivos
-- **Interfaz moderna**: SPA responsiva con React y TailwindCSS
-- **API REST**: Backend asíncrono con FastAPI
-- **Base de datos**: PostgreSQL con SQLAlchemy ORM
-- **Contenedorización**: Docker y docker-compose para despliegue
-- **PWA**: Soporte para uso offline
-
-## 🏗️ Arquitectura
+## 🏗️ Arquitectura del Sistema
 
 ### Backend (FastAPI)
-- **Framework**: FastAPI 0.104+
-- **Base de datos**: PostgreSQL con SQLAlchemy
-- **Procesamiento Excel**: openpyxl y pandas
-- **Validación**: Pydantic
-- **Tareas en segundo plano**: Celery + Redis (opcional)
+- **Framework**: FastAPI 0.104+ con Python 3.12+
+- **Base de datos**: PostgreSQL con SQLAlchemy ORM
+- **Procesamiento Excel**: OpenPyXL para modificación de templates
+- **Generación PDF**: ReportLab para documentos PDF
+- **Validación**: Pydantic con validadores personalizados
+- **Logging**: Sistema de logging profesional
+- **Configuración**: Gestión centralizada de configuración
 
-### Frontend (React)
+### Frontend (React + TypeScript)
 - **Framework**: React 18+ con TypeScript
-- **Estilos**: TailwindCSS
-- **Tablas**: react-table
-- **HTTP**: Axios
-- **PWA**: Vite PWA Plugin
+- **Estilos**: TailwindCSS con componentes responsivos
+- **Formularios**: React Hook Form con validación
+- **HTTP**: Axios con manejo de errores
+- **Estado**: React Query para gestión de estado del servidor
+- **PWA**: Vite PWA Plugin para funcionalidad offline
 
 ### Infraestructura
-- **Contenedores**: Docker
-- **Orquestación**: docker-compose
-- **Servidor web**: Nginx
-- **Base de datos**: PostgreSQL
-- **Cache**: Redis
+- **Contenedores**: Docker con multi-stage builds
+- **Orquestación**: Docker Compose para desarrollo y producción
+- **Servidor web**: Nginx con configuración optimizada
+- **Base de datos**: PostgreSQL con backup automático
+- **Cache**: Redis para optimización (opcional)
 
 ## 📁 Estructura del Proyecto
 
 ```
 geocreator/
-├── backend/                 # Backend FastAPI
-│   ├── main.py             # Aplicación principal
-│   ├── database.py         # Configuración de BD
-│   ├── models.py           # Modelos SQLAlchemy
-│   ├── schemas.py          # Esquemas Pydantic
-│   ├── services/           # Lógica de negocio
-│   │   ├── excel_service.py
+├── backend/                    # Backend FastAPI
+│   ├── main.py                # Aplicación principal
+│   ├── config.py              # Configuración centralizada
+│   ├── database.py            # Configuración de BD
+│   ├── models.py              # Modelos SQLAlchemy
+│   ├── schemas.py             # Esquemas Pydantic
+│   ├── services/              # Lógica de negocio
+│   │   ├── excel_collaborative_service.py
+│   │   ├── simple_pdf_service.py
 │   │   └── orden_service.py
-│   ├── utils/              # Utilidades
-│   │   ├── excel_validator.py
+│   ├── utils/                 # Utilidades
+│   │   ├── logger.py          # Sistema de logging
+│   │   ├── exceptions.py      # Excepciones personalizadas
+│   │   ├── validators.py      # Validadores de datos
 │   │   └── file_handler.py
-│   ├── requirements.txt    # Dependencias Python
-│   └── .env               # Variables de entorno
-├── frontend/               # Frontend React
+│   ├── templates/             # Templates Excel
+│   └── requirements.txt       # Dependencias Python
+├── frontend/                  # Frontend React
 │   ├── src/
-│   │   ├── components/     # Componentes React
-│   │   ├── pages/          # Páginas
-│   │   ├── services/       # Servicios API
-│   │   └── main.tsx        # Punto de entrada
-│   ├── package.json        # Dependencias Node
-│   └── vite.config.ts      # Configuración Vite
-├── docker/                 # Configuración Docker
+│   │   ├── components/        # Componentes React
+│   │   ├── pages/            # Páginas de la aplicación
+│   │   ├── services/         # Servicios API
+│   │   ├── types/            # Tipos TypeScript
+│   │   ├── constants/        # Constantes de la app
+│   │   ├── utils/            # Utilidades
+│   │   └── main.tsx          # Punto de entrada
+│   ├── package.json          # Dependencias Node
+│   └── vite.config.ts        # Configuración Vite
+├── docker/                   # Configuración Docker
 │   ├── Dockerfile.backend
 │   ├── Dockerfile.frontend
 │   └── nginx.conf
-├── docs/                   # Documentación
-├── archivos/               # Archivos de ejemplo
-└── docker-compose.yml      # Orquestación de servicios
+├── docs/                     # Documentación
+├── archivos/                 # Archivos de ejemplo
+└── docker-compose.yml        # Orquestación de servicios
 ```
 
 ## 🚀 Instalación y Configuración
 
 ### Prerrequisitos
 
-- Docker y Docker Compose
-- Python 3.12+ (para desarrollo local)
-- Node.js 18+ (para desarrollo local)
+- **Docker**: 20.10+ y Docker Compose 2.0+
+- **Python**: 3.12+ (para desarrollo local)
+- **Node.js**: 18+ (para desarrollo local)
+- **PostgreSQL**: 13+ (para desarrollo local)
 
 ### Instalación con Docker (Recomendado)
 
@@ -113,7 +109,7 @@ docker-compose up --build
 ```
 
 4. **Acceder a la aplicación**
-- Frontend: http://localhost
+- Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
 - Documentación API: http://localhost:8000/docs
 
@@ -138,13 +134,13 @@ pip install -r requirements.txt
 # Crear base de datos PostgreSQL
 createdb laboratorio_db
 
-# Ejecutar migraciones (si las hay)
-alembic upgrade head
+# Ejecutar migraciones
+python migrate_to_recepcion.py
 ```
 
 4. **Ejecutar servidor**
 ```bash
-uvicorn main:app --reload
+python main.py
 ```
 
 #### Frontend
@@ -160,59 +156,110 @@ npm install
 npm run dev
 ```
 
-## 📊 Formato de Archivos Excel
+## 📊 Formato de Datos
 
-### Estructura Requerida
+### Estructura de Recepción de Muestras
 
-El sistema espera archivos Excel con la siguiente estructura:
+El sistema maneja recepciones de muestras cilíndricas de concreto con la siguiente estructura:
 
-```
-ORDEN DE TRABAJO
-CÓDIGO: F-LEM-P-02.01
-VERSIÓN: 03
-FECHA: [fecha]
-PÁGINA: 1 de 1
-
-N° OT: [número]    N° RECEPCIÓN: [número]    REFERENCIA: [referencia]
-
-ÍTEM | CÓDIGO DE MUESTRA | DESCRIPCIÓN | CANTIDAD
------|-------------------|-------------|----------
-1    | 4259-CO-25       | COMPRESION  | 5
-2    | 4263-CO-25       | DESCRIPCIÓN | 3
-
-FECHA DE RECEPCIÓN: [fecha]
-PLAZO DE ENTREGA (DIAS): [días]
-OBSERVACIONES: [texto]
-O/T APERTURADA POR: [nombre]
-OT DESIGADA A: [nombre]
+```json
+{
+  "numero_ot": "OT-20251016-1760645936594-4994",
+  "numero_recepcion": "REC-20251016-1760645936594-4994",
+  "numero_cotizacion": "COT-2025-001",
+  "codigo_trazabilidad": "TRZ-ABC-123",
+  "asunto": "SOLICITO EJECUCIÓN DE ENSAYOS",
+  "cliente": "Empresa Constructora S.A.C.",
+  "domicilio_legal": "Av. Principal 123, Lima",
+  "ruc": "20123456789",
+  "persona_contacto": "Juan Pérez",
+  "email": "juan@empresa.com",
+  "telefono": "+51987654321",
+  "solicitante": "Ing. María García",
+  "domicilio_solicitante": "Av. Secundaria 456",
+  "proyecto": "Edificio Residencial XYZ",
+  "ubicacion": "Distrito de San Isidro",
+  "fecha_recepcion": "16/10/2025",
+  "fecha_estimada_culminacion": "20/10/2025",
+  "emision_fisica": true,
+  "emision_digital": true,
+  "entregado_por": "Carlos López",
+  "recibido_por": "Ana Martínez",
+  "muestras": [
+    {
+      "item_numero": 1,
+      "codigo_muestra": "MU-001",
+      "identificacion_muestra": "Probeta 1",
+      "estructura": "Columna",
+      "fc_kg_cm2": 280,
+      "fecha_moldeo": "15/10/2025",
+      "hora_moldeo": "14:30",
+      "edad": 28,
+      "fecha_rotura": "12/11/2025",
+      "requiere_densidad": false
+    }
+  ]
+}
 ```
 
 ### Validaciones
 
-- **Número OT**: Formato `XXXX-XX-XXX` (ej: 1422-25-LEM)
-- **Número Recepción**: Formato `XXXX-XX` (ej: 1384-25)
-- **Código Muestra**: Formato `XXXX-XX-XX` (ej: 4259-CO-25)
-- **Cantidad**: Número entero positivo
+- **Número OT**: Formato único con timestamp
+- **Número Recepción**: Formato único con timestamp
+- **RUC**: 11 dígitos numéricos
+- **Email**: Formato válido de email
+- **Teléfono**: Formato internacional
+- **Fechas**: Formato DD/MM/YYYY
+- **Horas**: Formato HH:MM
+- **Muestras**: Mínimo 1 muestra por recepción
 
 ## 🔧 API Endpoints
 
-### Órdenes de Trabajo
+### Recepciones de Muestras
 
-- `GET /api/ordenes/` - Listar órdenes
-- `GET /api/ordenes/{id}` - Obtener orden específica
-- `POST /api/ordenes/` - Crear nueva orden
-- `PUT /api/ordenes/{id}` - Actualizar orden
-- `DELETE /api/ordenes/{id}` - Eliminar orden
+- `GET /api/ordenes/` - Listar recepciones
+- `GET /api/ordenes/{id}` - Obtener recepción específica
+- `POST /api/ordenes/` - Crear nueva recepción
+- `PUT /api/ordenes/{id}` - Actualizar recepción
+- `DELETE /api/ordenes/{id}` - Eliminar recepción
+
+### Generación de Archivos
+
+- `GET /api/ordenes/{id}/pdf` - Descargar PDF de recepción
+- `GET /api/ordenes/{id}/excel` - Descargar Excel (MEGAMINTAJE)
 
 ### Procesamiento Excel
 
 - `POST /api/excel/upload` - Subir archivo Excel
 - `GET /api/excel/template/{orden_id}` - Descargar plantilla
-- `POST /api/excel/export` - Exportar múltiples órdenes
+- `POST /api/excel/export` - Exportar múltiples recepciones
 
 ### Dashboard
 
 - `GET /api/dashboard/stats` - Estadísticas del sistema
+
+## 📝 Uso del Sistema
+
+### 1. Crear Recepción de Muestra
+
+1. Navegar a "Nueva Recepción"
+2. Completar formulario con datos del cliente y proyecto
+3. Agregar muestras con sus especificaciones
+4. Validar fechas y datos
+5. Crear recepción
+
+### 2. Gestionar Recepciones
+
+1. Ver lista de recepciones en "Órdenes"
+2. Hacer clic en una recepción para ver detalles
+3. Editar información si es necesario
+4. Descargar archivos PDF y Excel
+
+### 3. Exportar Datos
+
+1. Seleccionar recepciones a exportar
+2. Elegir formato de exportación (PDF/Excel)
+3. Descargar archivos generados
 
 ## 🧪 Testing
 
@@ -228,35 +275,13 @@ cd frontend
 npm test
 ```
 
-## 📝 Uso del Sistema
-
-### 1. Subir Archivo Excel
-
-1. Navegar a "Subir Excel"
-2. Arrastrar archivo o hacer clic para seleccionar
-3. El sistema validará automáticamente el formato
-4. Procesar archivo para crear orden de trabajo
-
-### 2. Gestionar Órdenes
-
-1. Ver lista de órdenes en "Órdenes"
-2. Hacer clic en una orden para ver detalles
-3. Editar información si es necesario
-4. Descargar plantilla Excel prellenada
-
-### 3. Exportar Datos
-
-1. Seleccionar órdenes a exportar
-2. Elegir formato de exportación
-3. Descargar archivo Excel consolidado
-
 ## 🔒 Seguridad
 
-- Validación de tipos de archivo
-- Límites de tamaño de archivo
-- Sanitización de datos de entrada
-- CORS configurado
-- Variables de entorno para configuración sensible
+- **Validación de datos**: Validación robusta en frontend y backend
+- **Sanitización**: Limpieza de datos de entrada
+- **CORS**: Configuración de CORS para desarrollo y producción
+- **Variables de entorno**: Configuración sensible en variables de entorno
+- **Logging**: Sistema de logging para auditoría
 
 ## 🚀 Despliegue en Producción
 
@@ -268,6 +293,8 @@ ENVIRONMENT=production
 DEBUG=False
 DATABASE_URL=postgresql://user:pass@prod-db:5432/laboratorio_db
 SECRET_KEY=clave_super_segura_produccion
+CORS_ORIGINS=https://tu-dominio.com
+LOG_LEVEL=INFO
 ```
 
 ### Docker Compose para Producción
@@ -276,12 +303,35 @@ SECRET_KEY=clave_super_segura_produccion
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
+### Configuración de Nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name tu-dominio.com;
+    
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
+    
+    location / {
+        proxy_pass http://frontend:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
 ## 📚 Documentación Adicional
 
 - [API Documentation](http://localhost:8000/docs) - Documentación interactiva de la API
-- [Frontend Components](./docs/components.md) - Documentación de componentes React
-- [Excel Templates](./docs/templates.md) - Plantillas de ejemplo
-- [Deployment Guide](./docs/deployment.md) - Guía de despliegue
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Guía completa de despliegue
+- [Troubleshooting](#troubleshooting) - Solución de problemas comunes
 
 ## 🤝 Contribución
 
@@ -297,9 +347,63 @@ Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ## 🔧 Troubleshooting
 
+### Error de Conexión al Backend
+
+Si encuentras errores de conexión:
+
+**Síntomas:**
+```
+Failed to load resource: net::ERR_CONNECTION_REFUSED
+```
+
+**Soluciones:**
+1. Verificar que el backend esté ejecutándose:
+   ```bash
+   cd backend
+   python main.py
+   ```
+
+2. Verificar puerto del backend (debe ser 8000):
+   ```bash
+   netstat -an | grep 8000
+   ```
+
+3. Verificar configuración CORS en `backend/main.py`
+
+### Error de Validación 422
+
+Si encuentras errores de validación:
+
+**Síntomas:**
+```
+422 (Unprocessable Entity)
+```
+
+**Soluciones:**
+1. Verificar formato de fechas (DD/MM/YYYY)
+2. Verificar formato de RUC (11 dígitos)
+3. Verificar que todas las muestras tengan campos requeridos
+4. Revisar logs del backend para detalles específicos
+
+### Error de Generación de Excel
+
+Si la descarga de Excel falla:
+
+**Síntomas:**
+```
+500 (Internal Server Error) en /api/ordenes/{id}/excel
+```
+
+**Soluciones:**
+1. Verificar que el template Excel existe en `backend/templates/`
+2. Verificar permisos de escritura
+3. Revisar logs del backend para errores específicos
+
 ### Error de React Hooks
 
-Si encuentras errores como:
+Si encuentras errores de React Hooks:
+
+**Síntomas:**
 ```
 Warning: Invalid hook call. Hooks can only be called inside of the body of a function component.
 ```
@@ -317,26 +421,44 @@ Warning: Invalid hook call. Hooks can only be called inside of the body of a fun
    npm list react react-dom
    ```
 
-3. Configurar Vite para resolver duplicados (ver [ISSUES.md](./ISSUES.md))
+3. Configurar Vite para resolver duplicados (ya configurado en `vite.config.ts`)
 
-### Proxy de Base de Datos
+### Problemas de Base de Datos
 
-Si el proxy no funciona:
+Si hay problemas de conexión a la base de datos:
+
+**Soluciones:**
+1. Verificar que PostgreSQL esté ejecutándose
+2. Verificar credenciales en `backend/.env`
+3. Ejecutar migraciones:
 ```bash
-cd frontend
-node db-proxy.js
+   cd backend
+   python migrate_to_recepcion.py
 ```
-
-Verificar que esté ejecutándose en `http://localhost:3001`
 
 ## 🆘 Soporte
 
 Para soporte técnico o preguntas:
 - Crear un issue en el repositorio
-- Revisar [ISSUES.md](./ISSUES.md) para problemas conocidos
-- Contactar al equipo de desarrollo
 - Revisar la documentación de la API
+- Contactar al equipo de desarrollo
 
 ---
 
-**Desarrollado con ❤️ para automatizar la gestión de archivos Excel en laboratorio**
+**Desarrollado con ❤️ para automatizar la gestión de recepciones de muestras en laboratorio**
+
+## 📊 Estado del Proyecto
+
+- ✅ **Backend**: Completamente funcional con FastAPI
+- ✅ **Frontend**: React con TypeScript funcionando
+- ✅ **Base de datos**: PostgreSQL con migraciones
+- ✅ **Generación PDF**: ReportLab implementado
+- ✅ **Generación Excel**: OpenPyXL con templates
+- ✅ **Validación**: Sistema robusto de validación
+- ✅ **Logging**: Sistema profesional de logging
+- ✅ **Docker**: Configuración completa
+- ✅ **Documentación**: Completa y actualizada
+
+**Última actualización**: Enero 2025
+**Versión**: 1.0.0
+**Estado**: Producción lista
