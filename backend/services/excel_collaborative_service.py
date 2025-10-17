@@ -189,7 +189,7 @@ class ExcelCollaborativeService:
             worksheet.column_dimensions['H'].width = 15
             worksheet.column_dimensions['I'].width = 20
             worksheet.column_dimensions['J'].width = 12
-            worksheet.column_dimensions['G'].width = 20
+            worksheet.column_dimensions['G'].width = 8.11
             
             # No ajustar altura de fila 8 - código de trazabilidad eliminado
             
