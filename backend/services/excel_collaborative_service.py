@@ -83,8 +83,8 @@ class ExcelCollaborativeService:
                 
                 target_cell.value = value
                 
-                # Centrar específicamente la celda H46 (fecha estimada)
-                if cell_ref == 'H46':
+                # Centrar específicamente ciertas celdas
+                if cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
                     target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
                 else:
                     target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
@@ -184,12 +184,12 @@ class ExcelCollaborativeService:
     def _ajustar_ancho_columnas(self, worksheet):
         """Ajustar el ancho de las columnas"""
         try:
-            # Volver a los anchos originales - no modificar B y C
+            # Volver a los anchos originales - no modificar B, C y G (mantener template original)
             worksheet.column_dimensions['D'].width = 30
             worksheet.column_dimensions['H'].width = 15
             worksheet.column_dimensions['I'].width = 20
             worksheet.column_dimensions['J'].width = 12
-            worksheet.column_dimensions['G'].width = 8.11
+            # G mantiene su ancho original del template
             
             # No ajustar altura de fila 8 - código de trazabilidad eliminado
             
