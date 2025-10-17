@@ -132,8 +132,7 @@ class ExcelCollaborativeService:
         if recepcion_data.get('emision_digital', False):
             safe_set_cell('B47', 'X')
         
-        # Agregar X en D22 (columna de código) - no en D23
-        safe_set_cell('D22', 'X')
+        # No agregar X en D22 - esa columna es para códigos de muestras
         
         # Entregado/Recibido
         safe_set_cell('D49', recepcion_data.get('entregado_por', ''))
