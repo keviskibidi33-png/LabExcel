@@ -82,7 +82,12 @@ class ExcelCollaborativeService:
                         break
                 
                 target_cell.value = value
-                target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
+                
+                # Centrar específicamente la celda H46 (fecha estimada)
+                if cell_ref == 'H46':
+                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
+                else:
+                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 # Mantener altura original del template
                 
             except Exception as e:
@@ -111,7 +116,7 @@ class ExcelCollaborativeService:
         safe_set_cell('D19', recepcion_data.get('ubicacion', ''))
         
         # Fecha estimada
-        safe_set_cell('G15', recepcion_data.get('fecha_estimada_culminacion', ''))
+        safe_set_cell('H46', recepcion_data.get('fecha_estimada_culminacion', ''))
         
         # Emisión
         if recepcion_data.get('emision_fisica', False):
