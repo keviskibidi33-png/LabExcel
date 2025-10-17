@@ -165,9 +165,19 @@ export const apiService = {
   createOrden: async (orden: RecepcionMuestraCreate): Promise<RecepcionMuestraCreate> => {
     return handleApiCall(
       async () => {
-        const response = await api.post('/api/ordenes/', orden)
-        console.log('Recepción creada exitosamente:', response.data)
-        return response.data
+        // TEMPORAL: Usar endpoint de debug para capturar datos
+        console.log('Enviando datos al backend:', orden)
+        const response = await api.post('/api/debug/ordenes/', orden)
+        console.log('Respuesta del debug:', response.data)
+        
+        // Si la validación fue exitosa, intentar crear la recepción real
+        if (response.data.validation === 'SUCCESS') {
+          const realResponse = await api.post('/api/ordenes/', orden)
+          console.log('Recepción creada exitosamente:', realResponse.data)
+          return realResponse.data
+        } else {
+          throw new Error(`Errores de validación: ${response.data.errors?.join(', ')}`)
+        }
       },
       () => databaseService.createOrden(orden)
     )

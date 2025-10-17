@@ -10,27 +10,27 @@ import re
 class MuestraConcretoBase(BaseModel):
     """Esquema base para muestras de concreto"""
     item_numero: int = Field(..., ge=1, description="Número de item")
-    codigo_muestra: str = Field(..., min_length=1, max_length=50, description="Código de la muestra")
-    identificacion_muestra: str = Field(..., min_length=1, max_length=50, description="Identificación de la muestra")
-    estructura: str = Field(..., min_length=1, max_length=100, description="Tipo de estructura")
-    fc_kg_cm2: float = Field(..., gt=0, description="Resistencia característica en kg/cm²")
-    fecha_moldeo: str = Field(..., description="Fecha de moldeo (DD/MM/YYYY)")
-    hora_moldeo: Optional[str] = Field(None, description="Hora de moldeo (HH:MM)")
-    edad: int = Field(..., ge=1, le=365, description="Edad de la muestra en días")
-    fecha_rotura: str = Field(..., description="Fecha programada de rotura (DD/MM/YYYY)")
+    codigo_muestra: Optional[str] = Field("", max_length=50, description="Código de la muestra")
+    identificacion_muestra: Optional[str] = Field("", max_length=50, description="Identificación de la muestra")
+    estructura: Optional[str] = Field("", max_length=100, description="Tipo de estructura")
+    fc_kg_cm2: float = Field(280, gt=0, description="Resistencia característica en kg/cm²")
+    fecha_moldeo: Optional[str] = Field("", description="Fecha de moldeo (DD/MM/YYYY)")
+    hora_moldeo: Optional[str] = Field("", description="Hora de moldeo (HH:MM)")
+    edad: int = Field(10, ge=1, le=365, description="Edad de la muestra en días")
+    fecha_rotura: Optional[str] = Field("", description="Fecha programada de rotura (DD/MM/YYYY)")
     requiere_densidad: bool = Field(False, description="Requiere ensayo de densidad")
 
     @validator('fecha_moldeo', 'fecha_rotura')
     def validate_date_format(cls, v):
         """Validar formato de fecha DD/MM/YYYY"""
-        if not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
             raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
         return v
 
     @validator('hora_moldeo')
     def validate_time_format(cls, v):
         """Validar formato de hora HH:MM"""
-        if v and not re.match(r'^\d{2}:\d{2}$', v):
+        if v and v.strip() and not re.match(r'^\d{2}:\d{2}$', v):
             raise ValueError('La hora debe estar en formato HH:MM')
         return v
 
@@ -56,19 +56,19 @@ class RecepcionMuestraBase(BaseModel):
     codigo_trazabilidad: Optional[str] = Field(None, max_length=100, description="Código de trazabilidad")
     
     # Información del proyecto
-    asunto: str = Field(..., min_length=1, max_length=200, description="Asunto del proyecto")
-    cliente: str = Field(..., min_length=1, max_length=200, description="Nombre del cliente")
-    domicilio_legal: str = Field(..., min_length=1, max_length=300, description="Domicilio legal del cliente")
-    ruc: str = Field(..., min_length=8, max_length=20, description="RUC del cliente")
-    persona_contacto: str = Field(..., min_length=1, max_length=100, description="Persona de contacto")
-    email: str = Field(..., description="Email de contacto")
-    telefono: str = Field(..., min_length=7, max_length=20, description="Teléfono de contacto")
+    asunto: Optional[str] = Field("", max_length=200, description="Asunto del proyecto")
+    cliente: Optional[str] = Field("", max_length=200, description="Nombre del cliente")
+    domicilio_legal: Optional[str] = Field("", max_length=300, description="Domicilio legal del cliente")
+    ruc: Optional[str] = Field("", max_length=20, description="RUC del cliente")
+    persona_contacto: Optional[str] = Field("", max_length=100, description="Persona de contacto")
+    email: Optional[str] = Field("", description="Email de contacto")
+    telefono: Optional[str] = Field("", max_length=20, description="Teléfono de contacto")
     
     # Información del solicitante
-    solicitante: str = Field(..., min_length=1, max_length=200, description="Nombre del solicitante")
-    domicilio_solicitante: str = Field(..., min_length=1, max_length=300, description="Domicilio del solicitante")
-    proyecto: str = Field(..., min_length=1, max_length=200, description="Nombre del proyecto")
-    ubicacion: str = Field(..., min_length=1, max_length=200, description="Ubicación del proyecto")
+    solicitante: Optional[str] = Field("", max_length=200, description="Nombre del solicitante")
+    domicilio_solicitante: Optional[str] = Field("", max_length=300, description="Domicilio del solicitante")
+    proyecto: Optional[str] = Field("", max_length=200, description="Nombre del proyecto")
+    ubicacion: Optional[str] = Field("", max_length=200, description="Ubicación del proyecto")
     
     # Fechas importantes
     fecha_recepcion: Optional[str] = Field(None, description="Fecha de recepción (DD/MM/YYYY)")
@@ -103,21 +103,21 @@ class RecepcionMuestraBase(BaseModel):
     @validator('fecha_recepcion', 'fecha_estimada_culminacion')
     def validate_date_format(cls, v):
         """Validar formato de fecha DD/MM/YYYY"""
-        if v and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
             raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
         return v
 
     @validator('ruc')
     def validate_ruc(cls, v):
         """Validar formato de RUC"""
-        if not re.match(r'^\d{8,20}$', v):
+        if v and v.strip() and not re.match(r'^\d{8,20}$', v):
             raise ValueError('El RUC debe contener solo números y tener entre 8 y 20 dígitos')
         return v
 
     @validator('email')
     def validate_email(cls, v):
         """Validar formato de email"""
-        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+        if v and v.strip() and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
             raise ValueError('Formato de email inválido')
         return v
 

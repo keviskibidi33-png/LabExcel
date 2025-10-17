@@ -172,7 +172,65 @@ async def debug_crear_recepcion(request: dict):
     print(f"Tipo: {type(request)}")
     print(f"Contenido: {request}")
     print("=" * 50)
-    return {"message": "Datos recibidos correctamente", "data": request}
+    
+    # Intentar validar los datos
+    validation_errors = []
+    try:
+        # Intentar crear el objeto Pydantic
+        recepcion_data = RecepcionMuestraCreate(**request)
+        print("✅ Validación Pydantic exitosa")
+        return {
+            "message": "Datos recibidos y validados correctamente", 
+            "data": request,
+            "validation": "SUCCESS"
+        }
+    except Exception as e:
+        print(f"❌ Error de validación Pydantic: {e}")
+        validation_errors.append(str(e))
+        
+        # Intentar validar campo por campo
+        print("\n--- ANÁLISIS DETALLADO ---")
+        
+        # Verificar campos requeridos
+        required_fields = [
+            'numero_ot', 'numero_recepcion', 'asunto', 'cliente', 
+            'domicilio_legal', 'ruc', 'persona_contacto', 'email', 
+            'telefono', 'solicitante', 'domicilio_solicitante', 
+            'proyecto', 'ubicacion'
+        ]
+        
+        missing_fields = []
+        for field in required_fields:
+            if field not in request or not request[field]:
+                missing_fields.append(field)
+                print(f"❌ Campo faltante: {field}")
+        
+        if missing_fields:
+            validation_errors.append(f"Campos faltantes: {missing_fields}")
+        
+        # Verificar muestras
+        if 'muestras' in request:
+            muestras = request['muestras']
+            print(f"📊 Número de muestras: {len(muestras)}")
+            
+            for i, muestra in enumerate(muestras):
+                print(f"  Muestra {i+1}:")
+                if 'item_numero' in muestra:
+                    print(f"    item_numero: {muestra['item_numero']} (tipo: {type(muestra['item_numero'])})")
+                if 'fc_kg_cm2' in muestra:
+                    print(f"    fc_kg_cm2: {muestra['fc_kg_cm2']} (tipo: {type(muestra['fc_kg_cm2'])})")
+                if 'edad' in muestra:
+                    print(f"    edad: {muestra['edad']} (tipo: {type(muestra['edad'])})")
+        else:
+            print("❌ No hay muestras en el request")
+            validation_errors.append("Campo 'muestras' faltante")
+        
+        return {
+            "message": "Datos recibidos con errores de validación", 
+            "data": request,
+            "validation": "FAILED",
+            "errors": validation_errors
+        }
 
 @app.post("/api/ordenes/", response_model=RecepcionMuestraResponse)
 async def crear_recepcion_muestra(
@@ -182,15 +240,18 @@ async def crear_recepcion_muestra(
     """Crear nueva recepción de muestra"""
     try:
         app_logger.info(f"Creando recepción: {recepcion.numero_ot}")
+        print(f"DEBUG REAL ENDPOINT: Datos recibidos: {recepcion.model_dump()}")
         
         # Validar datos antes de procesar
         validation_errors = DataValidator.validate_recepcion_data(recepcion.model_dump())
         if validation_errors:
             app_logger.warning(f"Errores de validación: {validation_errors}")
+            print(f"DEBUG REAL ENDPOINT: Errores de validación: {validation_errors}")
             raise ValidationError("Datos de recepción inválidos", details={"errors": validation_errors})
         
         result = recepcion_service.crear_recepcion(db, recepcion)
         app_logger.info(f"Recepción creada exitosamente: {result.id}")
+        print(f"DEBUG REAL ENDPOINT: Recepción creada exitosamente: {result.id}")
         return result
         
     except ValidationError as e:

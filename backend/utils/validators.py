@@ -11,7 +11,7 @@ class DataValidator:
     """Validador de datos del sistema"""
     
     # Patrones de validación
-    RUC_PATTERN = re.compile(r'^\d{11}$')
+    RUC_PATTERN = re.compile(r'^\d{8,20}$')  # RUC puede tener entre 8 y 20 dígitos
     EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
     PHONE_PATTERN = re.compile(r'^[\+]?[1-9][\d]{0,15}$')
     DATE_PATTERN = re.compile(r'^\d{2}/\d{2}/\d{4}$')
@@ -86,23 +86,16 @@ class DataValidator:
             return errors
         
         for i, muestra in enumerate(muestras):
-            if not muestra.get('codigo_muestra'):
-                errors.append(f"Muestra {i+1}: Código de muestra es requerido")
-            
-            if not muestra.get('identificacion_muestra'):
-                errors.append(f"Muestra {i+1}: Identificación de muestra es requerida")
-            
-            if not muestra.get('estructura'):
-                errors.append(f"Muestra {i+1}: Estructura es requerida")
+            # Los campos de muestra son opcionales, solo validar formatos si están presentes
             
             # Validar fecha de moldeo
             fecha_moldeo = muestra.get('fecha_moldeo')
-            if fecha_moldeo and not cls.validate_date_value(fecha_moldeo):
+            if fecha_moldeo and fecha_moldeo.strip() and not cls.validate_date_value(fecha_moldeo):
                 errors.append(f"Muestra {i+1}: Fecha de moldeo inválida")
             
             # Validar hora de moldeo
             hora_moldeo = muestra.get('hora_moldeo')
-            if hora_moldeo and not cls.validate_time_value(hora_moldeo):
+            if hora_moldeo and hora_moldeo.strip() and not cls.validate_time_value(hora_moldeo):
                 errors.append(f"Muestra {i+1}: Hora de moldeo inválida")
         
         return errors
@@ -112,30 +105,29 @@ class DataValidator:
         """Validar datos completos de recepción"""
         errors = []
         
-        # Validar campos requeridos
+        # Solo validar campos mínimos requeridos
         required_fields = [
-            'numero_ot', 'numero_recepcion', 'cliente', 
-            'proyecto', 'fecha_recepcion'
+            'numero_ot', 'numero_recepcion'
         ]
         
         for field in required_fields:
             if not data.get(field):
                 errors.append(f"Campo '{field}' es requerido")
         
-        # Validar formatos
-        if data.get('ruc') and not cls.validate_ruc(data['ruc']):
-            errors.append("RUC debe tener 11 dígitos")
+        # Validar formatos solo si los campos tienen contenido
+        if data.get('ruc') and data['ruc'].strip() and not cls.validate_ruc(data['ruc']):
+            errors.append("RUC debe tener entre 8 y 20 dígitos")
         
-        if data.get('email') and not cls.validate_email(data['email']):
+        if data.get('email') and data['email'].strip() and not cls.validate_email(data['email']):
             errors.append("Formato de email inválido")
         
-        if data.get('telefono') and not cls.validate_phone(data['telefono']):
+        if data.get('telefono') and data['telefono'].strip() and not cls.validate_phone(data['telefono']):
             errors.append("Formato de teléfono inválido")
         
-        if data.get('fecha_recepcion') and not cls.validate_date_value(data['fecha_recepcion']):
+        if data.get('fecha_recepcion') and data['fecha_recepcion'].strip() and not cls.validate_date_value(data['fecha_recepcion']):
             errors.append("Fecha de recepción inválida")
         
-        if data.get('fecha_estimada_culminacion') and not cls.validate_date_value(data['fecha_estimada_culminacion']):
+        if data.get('fecha_estimada_culminacion') and data['fecha_estimada_culminacion'].strip() and not cls.validate_date_value(data['fecha_estimada_culminacion']):
             errors.append("Fecha estimada de culminación inválida")
         
         # Validar muestras
