@@ -125,8 +125,8 @@ class ExcelCollaborativeService:
             safe_set_cell('D22', 'X')
         
         # Entregado/Recibido
-        safe_set_cell('D24', recepcion_data.get('entregado_por', ''))
-        safe_set_cell('H24', recepcion_data.get('recibido_por', ''))
+        safe_set_cell('D49', recepcion_data.get('entregado_por', ''))
+        safe_set_cell('H49', recepcion_data.get('recibido_por', ''))
         
         print("Datos de recepción rellenados")
     
