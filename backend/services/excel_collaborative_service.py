@@ -91,10 +91,10 @@ class ExcelCollaborativeService:
         # Datos principales
         safe_set_cell('D6', recepcion_data.get('numero_recepcion', ''))
         safe_set_cell('D7', recepcion_data.get('numero_cotizacion', ''))
-        safe_set_cell('D9', recepcion_data.get('asunto', ''))
+        # D9 eliminado - no poner "SOLICITO EJECUCIÓN DE ENSAYOS"
         safe_set_cell('J6', recepcion_data.get('fecha_recepcion', ''))
         safe_set_cell('J7', recepcion_data.get('numero_ot', ''))
-        safe_set_cell('I8', recepcion_data.get('codigo_trazabilidad', ''))
+        # I8 eliminado - no poner código de trazabilidad
         
         # Datos del cliente
         safe_set_cell('D10', recepcion_data.get('cliente', ''))
@@ -186,7 +186,7 @@ class ExcelCollaborativeService:
             worksheet.column_dimensions['J'].width = 12
             worksheet.column_dimensions['G'].width = 20
             
-            # Las alturas de filas se ajustan en _ajustar_alturas_filas()
+            # No ajustar altura de fila 8 - código de trazabilidad eliminado
             
             print("Columnas ajustadas a anchos originales")
             

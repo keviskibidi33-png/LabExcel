@@ -85,8 +85,8 @@ def _prepare_recepcion_data_for_excel(recepcion: RecepcionMuestra) -> dict:
         'numero_ot': recepcion.numero_ot or '',
         'numero_recepcion': recepcion.numero_recepcion or '',
         'numero_cotizacion': recepcion.numero_cotizacion or '',
-        'codigo_trazabilidad': recepcion.codigo_trazabilidad or '',
-        'asunto': recepcion.asunto or '',
+        # codigo_trazabilidad eliminado
+        # asunto eliminado
         'cliente': recepcion.cliente or '',
         'domicilio_legal': recepcion.domicilio_legal or '',
         'ruc': recepcion.ruc or '',

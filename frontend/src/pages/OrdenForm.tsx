@@ -32,8 +32,8 @@ interface OrdenFormData {
   numero_recepcion: string;
   numero_cotizacion?: string;
   numero_ot: string;
-  codigo_trazabilidad?: string;
-  asunto: string;
+  // codigo_trazabilidad eliminado
+  // asunto eliminado
   cliente: string;
   domicilio_legal: string;
   ruc: string;
@@ -92,7 +92,7 @@ const OrdenForm: React.FC = () => {
       }],
       fecha_recepcion: new Date().toLocaleDateString('es-ES'),
       fecha_estimada_culminacion: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
-      asunto: 'SOLICITO EJECUCIÓN DE ENSAYOS',
+      // asunto eliminado
       emision_fisica: false,
       emision_digital: true,
       entregado_por: '',
@@ -295,29 +295,7 @@ const OrdenForm: React.FC = () => {
             </div>
           </div>
           
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              CÓDIGO DE TRAZABILIDAD CON EL INFORME DE ENSAYO:
-            </label>
-            <input
-              type="text"
-              {...register('codigo_trazabilidad')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Código de trazabilidad"
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ASUNTO:
-            </label>
-            <input
-              type="text"
-              {...register('asunto', { required: 'Asunto es requerido' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="SOLICITO EJECUCIÓN DE ENSAYOS"
-            />
-          </div>
+          {/* Campos eliminados: código de trazabilidad y asunto */}
         </div>
 
         {/* Tabla de muestras */}

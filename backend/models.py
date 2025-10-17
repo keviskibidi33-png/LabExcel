@@ -18,10 +18,10 @@ class RecepcionMuestra(Base):
     numero_ot = Column(String(50), unique=True, index=True, nullable=False, comment="Número de orden de trabajo")
     numero_recepcion = Column(String(50), index=True, nullable=False, comment="Número de recepción")
     numero_cotizacion = Column(String(50), nullable=True, comment="Número de cotización")
-    codigo_trazabilidad = Column(String(100), nullable=True, comment="Código de trazabilidad")
+    # codigo_trazabilidad eliminado
     
     # Información del proyecto
-    asunto = Column(String(200), nullable=False, comment="Asunto del proyecto")
+    # asunto eliminado
     cliente = Column(String(200), nullable=False, comment="Nombre del cliente")
     domicilio_legal = Column(String(300), nullable=False, comment="Domicilio legal del cliente")
     ruc = Column(String(20), nullable=False, comment="RUC del cliente")

@@ -53,10 +53,10 @@ class RecepcionMuestraBase(BaseModel):
     numero_ot: str = Field(..., min_length=1, max_length=50, description="Número de orden de trabajo")
     numero_recepcion: str = Field(..., min_length=1, max_length=50, description="Número de recepción")
     numero_cotizacion: Optional[str] = Field(None, max_length=50, description="Número de cotización")
-    codigo_trazabilidad: Optional[str] = Field(None, max_length=100, description="Código de trazabilidad")
+    # codigo_trazabilidad eliminado
     
     # Información del proyecto
-    asunto: Optional[str] = Field("", max_length=200, description="Asunto del proyecto")
+    # asunto eliminado
     cliente: Optional[str] = Field("", max_length=200, description="Nombre del cliente")
     domicilio_legal: Optional[str] = Field("", max_length=300, description="Domicilio legal del cliente")
     ruc: Optional[str] = Field("", max_length=20, description="RUC del cliente")
@@ -157,8 +157,8 @@ class ExcelExportRequest(BaseModel):
 class RecepcionMuestraUpdate(BaseModel):
     """Esquema para actualizar una recepción de muestra"""
     numero_cotizacion: Optional[str] = None
-    codigo_trazabilidad: Optional[str] = None
-    asunto: Optional[str] = None
+    # codigo_trazabilidad eliminado
+    # asunto eliminado
     cliente: Optional[str] = None
     domicilio_legal: Optional[str] = None
     ruc: Optional[str] = None

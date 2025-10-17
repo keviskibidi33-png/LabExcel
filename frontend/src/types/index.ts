@@ -8,8 +8,8 @@ export interface RecepcionMuestraData {
   numero_ot: string;
   numero_recepcion: string;
   numero_cotizacion: string;
-  codigo_trazabilidad: string;
-  asunto: string;
+  // codigo_trazabilidad eliminado
+  // asunto eliminado
   cliente: string;
   domicilio_legal: string;
   ruc: string;
