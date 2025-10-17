@@ -23,9 +23,32 @@ class ExcelCollaborativeService:
         workbook = openpyxl.load_workbook(template_file)
         worksheet = workbook.active
         
-        # Cambiar "X" por "Descripción"
-        if worksheet['C22'].value == 'X':
-            worksheet['C22'].value = 'Descripción'
+        # Cambiar "X" por "Descripción" - manejar celdas fusionadas
+        try:
+            # Buscar la celda que contiene "X" en la fila 22
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
+                cell_ref = f"{col}22"
+                cell_value = worksheet[cell_ref].value
+                if cell_value and 'X' in str(cell_value):
+                    # Verificar si está en un rango fusionado
+                    for merged_range in worksheet.merged_cells.ranges:
+                        if cell_ref in merged_range:
+                            # Usar la celda superior izquierda del rango fusionado
+                            top_left = merged_range.min_row, merged_range.min_col
+                            target_cell = worksheet.cell(row=top_left[0], column=top_left[1])
+                            if target_cell.value:
+                                # Cambiar "X" por "Descripción" en el texto fusionado
+                                new_value = str(target_cell.value).replace('X', 'Descripción')
+                                target_cell.value = new_value
+                                print(f"Cambiado 'X' por 'Descripción' en celda fusionada {target_cell.coordinate}: '{new_value}'")
+                            break
+                    else:
+                        # Si no está fusionada, cambiar directamente
+                        worksheet[cell_ref].value = str(cell_value).replace('X', 'Descripción')
+                        print(f"Cambiado 'X' por 'Descripción' en {cell_ref}")
+                    break
+        except Exception as e:
+            print(f"Error cambiando X por Descripción: {e}")
         
         # Rellenar datos
         self._rellenar_datos_recepcion(worksheet, recepcion_data)
@@ -156,17 +179,17 @@ class ExcelCollaborativeService:
     def _ajustar_ancho_columnas(self, worksheet):
         """Ajustar el ancho de las columnas"""
         try:
-            worksheet.column_dimensions['D'].width = 35
+            # Volver a los anchos originales - no modificar B y C
+            worksheet.column_dimensions['D'].width = 30
             worksheet.column_dimensions['H'].width = 15
             worksheet.column_dimensions['I'].width = 20
-            worksheet.column_dimensions['J'].width = 15
-            worksheet.column_dimensions['C'].width = 30
+            worksheet.column_dimensions['J'].width = 12
             worksheet.column_dimensions['G'].width = 20
             
-            # Ajustar altura de la fila 21 para los encabezados
+            # Ajustar altura de la fila 21 para los encabezados (para que se vean completos)
             worksheet.row_dimensions[21].height = 30
             
-            print("Columnas ajustadas")
+            print("Columnas ajustadas a anchos originales")
             
         except Exception as e:
             print(f"Error ajustando columnas: {e}")
