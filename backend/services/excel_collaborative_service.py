@@ -155,8 +155,8 @@ class ExcelCollaborativeService:
             except Exception as e:
                 print(f"Error en celda {cell_ref}: {e}")
         
-        # Tabla de muestras comienza en fila 26
-        fila_inicio = 26
+        # Tabla de muestras comienza en fila 23
+        fila_inicio = 23
         
         for i, muestra in enumerate(muestras):
             fila_actual = fila_inicio + i
