@@ -118,11 +118,14 @@ class ExcelCollaborativeService:
         # Fecha estimada
         safe_set_cell('H46', recepcion_data.get('fecha_estimada_culminacion', ''))
         
-        # Emisión
+        # Emisión - Corregir a las filas correctas según el template
         if recepcion_data.get('emision_fisica', False):
-            safe_set_cell('D21', 'X')
+            safe_set_cell('D46', 'X')
         if recepcion_data.get('emision_digital', False):
-            safe_set_cell('D22', 'X')
+            safe_set_cell('D47', 'X')
+        
+        # Agregar X en D22 (columna de código) - no en D23
+        safe_set_cell('D22', 'X')
         
         # Entregado/Recibido
         safe_set_cell('D49', recepcion_data.get('entregado_por', ''))
@@ -168,8 +171,9 @@ class ExcelCollaborativeService:
                 except:
                     pass
             
-            # Llenar datos
+            # Llenar datos - Corregir mapeo de columnas
             safe_set_cell(f'A{fila_actual}', i + 1)  # Número
+            # B{fila_actual} - Código muestra LEM (no se llena, zona sombreada)
             safe_set_cell(f'C{fila_actual}', muestra.get('identificacion_muestra', ''))  # Descripción
             safe_set_cell(f'D{fila_actual}', muestra.get('estructura', ''))  # Estructura
             safe_set_cell(f'E{fila_actual}', muestra.get('fc_kg_cm2', ''))  # F'c
