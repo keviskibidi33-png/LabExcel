@@ -304,12 +304,13 @@ const OrdenForm: React.FC = () => {
             <div className="col-span-1 text-center">N°</div>
             <div className="col-span-2 text-center">CÓDIGO MUESTRA LEM</div>
             <div className="col-span-2 text-center">IDENTIFICACIÓN MUESTRA</div>
-            <div className="col-span-2 text-center">ESTRUCTURA</div>
+            <div className="col-span-1 text-center">ESTRUCTURA</div>
             <div className="col-span-1 text-center">F'c (kg/cm²)</div>
             <div className="col-span-1 text-center">FECHA MOLDEO</div>
             <div className="col-span-1 text-center">HORA MOLDEO</div>
             <div className="col-span-1 text-center">EDAD</div>
             <div className="col-span-1 text-center">FECHA ROTURA</div>
+            <div className="col-span-1 text-center">DENSIDAD SI/NO</div>
           </div>
           
           {fields.map((field, index) => (
@@ -357,7 +358,7 @@ const OrdenForm: React.FC = () => {
                   <p className="text-red-500 text-xs mt-1">{errors.muestras[index]?.identificacion_muestra?.message}</p>
                 )}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1">
                 <input
                   type="text"
                   {...register(`muestras.${index}.estructura` as const, { 
@@ -413,6 +414,15 @@ const OrdenForm: React.FC = () => {
                   placeholder="DD/MM/YYYY"
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+              </div>
+              <div className="col-span-1">
+                <select
+                  {...register(`muestras.${index}.requiere_densidad` as const)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="false">NO</option>
+                  <option value="true">SI</option>
+                </select>
               </div>
             </div>
           ))}
