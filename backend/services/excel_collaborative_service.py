@@ -83,8 +83,11 @@ class ExcelCollaborativeService:
                 
                 target_cell.value = value
                 
+                # Centrar las X en los cuadros de checkboxes
+                if cell_ref in ['B46', 'B47'] and value == 'X':
+                    target_cell.alignment = Alignment(horizontal='center', vertical='center')
                 # Centrar específicamente ciertas celdas
-                if cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
+                elif cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
                     target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
                 else:
                     target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
@@ -119,6 +122,11 @@ class ExcelCollaborativeService:
         safe_set_cell('H46', recepcion_data.get('fecha_estimada_culminacion', ''))
         
         # Emisión - Las X van en columna B donde están los cuadros
+        # Limpiar primero las celdas (eliminar cualquier X predefinida del template)
+        worksheet['B46'].value = None
+        worksheet['B47'].value = None
+        
+        # Aplicar lógica real (no mock predefinido)
         if recepcion_data.get('emision_fisica', False):
             safe_set_cell('B46', 'X')
         if recepcion_data.get('emision_digital', False):
@@ -152,7 +160,15 @@ class ExcelCollaborativeService:
                         break
                 
                 target_cell.value = value
-                target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
+                
+                # Centrar las X en los cuadros de checkboxes
+                if cell_ref in ['B46', 'B47'] and value == 'X':
+                    target_cell.alignment = Alignment(horizontal='center', vertical='center')
+                # Centrar específicamente ciertas celdas
+                elif cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
+                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
+                else:
+                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 # Mantener altura original del template
                 
             except Exception as e:
