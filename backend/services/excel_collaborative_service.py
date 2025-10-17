@@ -118,11 +118,11 @@ class ExcelCollaborativeService:
         # Fecha estimada
         safe_set_cell('H46', recepcion_data.get('fecha_estimada_culminacion', ''))
         
-        # Emisión - Corregir a las filas correctas según el template
+        # Emisión - Las X van en columna B donde están los cuadros
         if recepcion_data.get('emision_fisica', False):
-            safe_set_cell('D46', 'X')
+            safe_set_cell('B46', 'X')
         if recepcion_data.get('emision_digital', False):
-            safe_set_cell('D47', 'X')
+            safe_set_cell('B47', 'X')
         
         # Agregar X en D22 (columna de código) - no en D23
         safe_set_cell('D22', 'X')
