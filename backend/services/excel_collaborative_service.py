@@ -83,7 +83,7 @@ class ExcelCollaborativeService:
                 
                 target_cell.value = value
                 target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
-                worksheet.row_dimensions[target_cell.row].height = 20
+                # Mantener altura original del template
                 
             except Exception as e:
                 print(f"Error en celda {cell_ref}: {e}")
@@ -145,7 +145,7 @@ class ExcelCollaborativeService:
                 
                 target_cell.value = value
                 target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
-                worksheet.row_dimensions[target_cell.row].height = 20
+                # Mantener altura original del template
                 
             except Exception as e:
                 print(f"Error en celda {cell_ref}: {e}")
@@ -186,8 +186,7 @@ class ExcelCollaborativeService:
             worksheet.column_dimensions['J'].width = 12
             worksheet.column_dimensions['G'].width = 20
             
-            # Ajustar altura de la fila 21 para los encabezados (para que se vean completos)
-            worksheet.row_dimensions[21].height = 30
+            # Las alturas de filas se ajustan en _ajustar_alturas_filas()
             
             print("Columnas ajustadas a anchos originales")
             
