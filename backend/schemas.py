@@ -11,6 +11,7 @@ class MuestraConcretoBase(BaseModel):
     """Esquema base para muestras de concreto"""
     item_numero: int = Field(..., ge=1, description="Número de item")
     codigo_muestra: Optional[str] = Field("", max_length=50, description="Código de la muestra")
+    codigo_muestra_lem: Optional[str] = Field("", max_length=50, description="Código muestra LEM (zona sombreada)")
     identificacion_muestra: Optional[str] = Field("", max_length=50, description="Identificación de la muestra")
     estructura: Optional[str] = Field("", max_length=100, description="Tipo de estructura")
     fc_kg_cm2: float = Field(280, gt=0, description="Resistencia característica en kg/cm²")

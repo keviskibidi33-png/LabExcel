@@ -18,6 +18,7 @@ const DEFAULT_EDAD_VALUE = 10;
 interface ItemOrden {
   item_numero: number;
   codigo_muestra: string;
+  codigo_muestra_lem: string;
   identificacion_muestra: string;
   estructura: string;
   fc_kg_cm2: number;
@@ -80,7 +81,8 @@ const OrdenForm: React.FC = () => {
       ...generateUniqueNumbers(),
       muestras: [{ 
         item_numero: 1, 
-        codigo_muestra: '', 
+        codigo_muestra: '',
+        codigo_muestra_lem: '', 
         identificacion_muestra: '', 
         estructura: '', 
         fc_kg_cm2: DEFAULT_FC_VALUE, 
@@ -331,16 +333,16 @@ const OrdenForm: React.FC = () => {
               <div className="col-span-2">
                 <input
                   type="text"
-                  {...register(`muestras.${index}.codigo_muestra` as const, { 
-                    required: 'Código de muestra es requerido' 
+                  {...register(`muestras.${index}.codigo_muestra_lem` as const, { 
+                    required: 'Código muestra LEM es requerido' 
                   })}
                   className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                    errors.muestras?.[index]?.codigo_muestra ? 'border-red-500' : 'border-gray-300'
+                    errors.muestras?.[index]?.codigo_muestra_lem ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="4259-CO-25"
                 />
-                {errors.muestras?.[index]?.codigo_muestra && (
-                  <p className="text-red-500 text-xs mt-1">{errors.muestras[index]?.codigo_muestra?.message}</p>
+                {errors.muestras?.[index]?.codigo_muestra_lem && (
+                  <p className="text-red-500 text-xs mt-1">{errors.muestras[index]?.codigo_muestra_lem?.message}</p>
                 )}
               </div>
               <div className="col-span-2">

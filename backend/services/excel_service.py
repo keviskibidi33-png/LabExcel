@@ -116,19 +116,29 @@ class ExcelService:
         items = []
         
         # Buscar la sección de items (desde fila 8 hasta encontrar fechas)
+        # Ajustar el rango para encontrar datos más abajo en el Excel
         for i in range(8, len(df)):
             if pd.notna(df.iloc[i, 0]) and "FECHA DE RECEPCIÓN" in str(df.iloc[i, 0]):
                 break
             
             # Verificar si hay datos en las columnas de item
-            if (pd.notna(df.iloc[i, 0]) and str(df.iloc[i, 0]).strip().isdigit() and
-                pd.notna(df.iloc[i, 1]) and str(df.iloc[i, 1]).strip()):
+            # Solo requerimos que la columna A (N°) tenga un número válido
+            if (pd.notna(df.iloc[i, 0]) and str(df.iloc[i, 0]).strip().isdigit()):
+                
+                # Manejar tipos de datos correctamente
+                cantidad = 1
+                if pd.notna(df.iloc[i, 7]):
+                    try:
+                        cantidad = int(df.iloc[i, 7])
+                    except (ValueError, TypeError):
+                        cantidad = 1
                 
                 item_data = {
                     'item_numero': int(df.iloc[i, 0]),
-                    'codigo_muestra': str(df.iloc[i, 1]).strip(),
-                    'descripcion': str(df.iloc[i, 3]).strip() if pd.notna(df.iloc[i, 3]) else "",
-                    'cantidad': int(df.iloc[i, 7]) if pd.notna(df.iloc[i, 7]) else 1,
+                    'codigo_muestra_lem': str(df.iloc[i, 1]).strip() if pd.notna(df.iloc[i, 1]) else "",  # Columna B: Código muestra LEM
+                    'codigo_muestra': str(df.iloc[i, 2]).strip() if pd.notna(df.iloc[i, 2]) else "",  # Columna C: Codigo
+                    'estructura': str(df.iloc[i, 3]).strip() if pd.notna(df.iloc[i, 3]) else "",       # Columna D: Estructura
+                    'cantidad': cantidad,
                     'especificacion': str(df.iloc[i, 8]).strip() if pd.notna(df.iloc[i, 8]) else ""
                 }
                 items.append(item_data)
@@ -169,10 +179,11 @@ class ExcelService:
         row = 24
         for item in recepcion.muestras:
             if row <= 43:  # Máximo 20 muestras
-                ws[f'B{row}'] = item.codigo_muestra
-                ws[f'C{row}'] = getattr(item, 'identificacion_muestra', '')
-                ws[f'E{row}'] = getattr(item, 'estructura', '')
-                ws[f'F{row}'] = getattr(item, 'fc_kg_cm2', 280)
+                # Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
+                ws[f'B{row}'] = getattr(item, 'codigo_muestra_lem', '')  # Código muestra LEM
+                ws[f'D{row}'] = getattr(item, 'identificacion_muestra', '')  # Identificación muestra
+                ws[f'E{row}'] = getattr(item, 'estructura', '')  # Estructura
+                ws[f'F{row}'] = getattr(item, 'fc_kg_cm2', 280)  # F'c
                 if hasattr(item, 'fecha_moldeo') and item.fecha_moldeo:
                     ws[f'G{row}'] = item.fecha_moldeo.strftime("%d/%m/%y")
                 if hasattr(item, 'hora_moldeo') and item.hora_moldeo:
@@ -180,17 +191,19 @@ class ExcelService:
                 ws[f'I{row}'] = getattr(item, 'edad', 10)
                 if hasattr(item, 'fecha_rotura') and item.fecha_rotura:
                     ws[f'J{row}'] = item.fecha_rotura.strftime("%d/%m/%y")
+                # Columna J para densidad SI/NO
+                ws[f'K{row}'] = 'SI' if getattr(item, 'requiere_densidad', False) else 'NO'
                 row += 1
         
         # Fecha estimada de culminación
-        if orden.fecha_fin_programado:
-            ws['F47'] = orden.fecha_fin_programado.strftime("%d/%m/%Y")
+        if recepcion.fecha_fin_programado:
+            ws['F47'] = recepcion.fecha_fin_programado.strftime("%d/%m/%Y")
         
         # Responsables
-        if orden.aperturada_por:
-            ws['D50'] = orden.aperturada_por
-        if orden.designada_a:
-            ws['D51'] = orden.designada_a
+        if recepcion.aperturada_por:
+            ws['D50'] = recepcion.aperturada_por
+        if recepcion.designada_a:
+            ws['D51'] = recepcion.designada_a
     
     def exportar_ordenes(self, orden_ids: List[int], db: Session) -> str:
         """Exportar múltiples órdenes a un archivo Excel"""

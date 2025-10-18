@@ -82,7 +82,8 @@ class MuestraConcreto(Base):
     id = Column(Integer, primary_key=True, index=True)
     recepcion_id = Column(Integer, ForeignKey("recepcion.id"), nullable=False, comment="ID de la recepción")
     item_numero = Column(Integer, nullable=False, comment="Número de item")
-    codigo_muestra = Column(String(50), nullable=False, comment="Código de la muestra")
+    codigo_muestra = Column(String(50), nullable=True, comment="Código de la muestra")
+    codigo_muestra_lem = Column(String(50), nullable=True, comment="Código muestra LEM (zona sombreada)")
     identificacion_muestra = Column(String(50), nullable=False, comment="Identificación de la muestra")
     
     # Características de la muestra

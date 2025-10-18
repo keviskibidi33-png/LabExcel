@@ -186,17 +186,17 @@ class ExcelCollaborativeService:
                 except:
                     pass
             
-            # Llenar datos - Corregir mapeo de columnas
+            # Llenar datos - Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
             safe_set_cell(f'A{fila_actual}', i + 1)  # Número
-            # B{fila_actual} - Código muestra LEM (no se llena, zona sombreada)
-            safe_set_cell(f'C{fila_actual}', muestra.get('identificacion_muestra', ''))  # Descripción
-            safe_set_cell(f'D{fila_actual}', muestra.get('estructura', ''))  # Estructura
-            safe_set_cell(f'E{fila_actual}', muestra.get('fc_kg_cm2', ''))  # F'c
-            safe_set_cell(f'F{fila_actual}', muestra.get('fecha_moldeo', ''))  # Fecha moldeo
-            safe_set_cell(f'G{fila_actual}', muestra.get('hora_moldeo', ''))  # Hora moldeo
-            safe_set_cell(f'H{fila_actual}', muestra.get('edad', ''))  # Edad
-            safe_set_cell(f'I{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
-            safe_set_cell(f'J{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
+            safe_set_cell(f'B{fila_actual}', muestra.get('codigo_muestra_lem', ''))  # Código muestra LEM
+            safe_set_cell(f'D{fila_actual}', muestra.get('identificacion_muestra', ''))  # Identificación muestra
+            safe_set_cell(f'E{fila_actual}', muestra.get('estructura', ''))  # Estructura
+            safe_set_cell(f'F{fila_actual}', muestra.get('fc_kg_cm2', ''))  # F'c
+            safe_set_cell(f'G{fila_actual}', muestra.get('fecha_moldeo', ''))  # Fecha moldeo
+            safe_set_cell(f'H{fila_actual}', muestra.get('hora_moldeo', ''))  # Hora moldeo
+            safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))  # Edad
+            safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
+            safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
         
         print(f"Muestras procesadas: {len(muestras)}")
     
