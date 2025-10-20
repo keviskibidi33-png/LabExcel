@@ -255,16 +255,17 @@ class ExcelCollaborativeService:
             print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
             print(f"Última fila de muestra: {ultima_fila_muestra}, Footer empieza en: {fila_footer_inicio}")
             
-            if ultima_fila_muestra >= fila_footer_inicio:
-                # Las muestras van a sobreescribir el footer - mover TODO el footer hacia abajo
-                filas_a_mover_footer = ultima_fila_muestra - fila_footer_inicio + 1
-                print(f"⚠️  Muestras van a sobreescribir footer - moviendo {filas_a_mover_footer} filas hacia abajo")
+            # SIEMPRE mover el footer si hay items extra, para dejar espacio para la línea delgada
+            if cantidad > filas_disponibles:
+                # Calcular cuántas filas necesitamos para todos los items + línea delgada
+                filas_necesarias = filas_extra + 1  # +1 para la línea delgada
+                print(f"⚠️  Moviendo footer {filas_necesarias} filas hacia abajo para dar espacio a {filas_extra} items extra + línea delgada")
                 
                 # Mover el footer completo (incluyendo línea delgada) hacia abajo
-                worksheet.insert_rows(fila_footer_inicio, amount=filas_a_mover_footer)
+                worksheet.insert_rows(fila_footer_inicio, amount=filas_necesarias)
                 
                 # Actualizar la posición del footer
-                fila_footer_inicio += filas_a_mover_footer
+                fila_footer_inicio += filas_necesarias
                 print(f"Footer movido a fila {fila_footer_inicio}")
             
             # Limpiar solo el contenido de las filas que vamos a usar para las muestras extra
