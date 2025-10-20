@@ -102,10 +102,28 @@ const OrdenForm: React.FC = () => {
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, insert } = useFieldArray({
     control,
     name: 'muestras'
   });
+
+  const duplicateItem = (index: number) => {
+    const source = fields[index] as any;
+    const clone: ItemOrden = {
+      item_numero: fields.length + 1,
+      codigo_muestra: source.codigo_muestra || '',
+      codigo_muestra_lem: (source as any).codigo_muestra_lem || '',
+      identificacion_muestra: source.identificacion_muestra || '',
+      estructura: source.estructura || '',
+      fc_kg_cm2: source.fc_kg_cm2 ?? DEFAULT_FC_VALUE,
+      fecha_moldeo: source.fecha_moldeo || '',
+      hora_moldeo: source.hora_moldeo || '',
+      edad: source.edad ?? DEFAULT_EDAD_VALUE,
+      fecha_rotura: source.fecha_rotura || '',
+      requiere_densidad: !!source.requiere_densidad,
+    };
+    insert(index + 1, clone);
+  };
 
   const createOrdenMutation = useMutation(createOrden, {
     onSuccess: () => {
@@ -301,22 +319,22 @@ const OrdenForm: React.FC = () => {
         </div>
 
         {/* Tabla de muestras */}
-        <div className="border border-gray-300 rounded-lg overflow-hidden">
-          <div className="bg-gray-100 grid grid-cols-12 gap-2 p-3 font-semibold text-sm">
+        <div className="border border-gray-300 rounded-lg overflow-x-auto">
+          <div className="min-w-[980px] bg-gray-100 grid grid-cols-12 gap-2 p-3 font-semibold text-xs sm:text-sm">
             <div className="col-span-1 text-center">N°</div>
-            <div className="col-span-2 text-center">CÓDIGO MUESTRA LEM</div>
-            <div className="col-span-2 text-center">IDENTIFICACIÓN MUESTRA</div>
-            <div className="col-span-1 text-center">ESTRUCTURA</div>
-            <div className="col-span-1 text-center">F'c (kg/cm²)</div>
-            <div className="col-span-1 text-center">FECHA MOLDEO</div>
-            <div className="col-span-1 text-center">HORA MOLDEO</div>
-            <div className="col-span-1 text-center">EDAD</div>
-            <div className="col-span-1 text-center">FECHA ROTURA</div>
-            <div className="col-span-1 text-center">DENSIDAD SI/NO</div>
+            <div className="col-span-2 text-center leading-tight">Código LEM</div>
+            <div className="col-span-2 text-center leading-tight">Identificación</div>
+            <div className="col-span-1 text-center leading-tight">Estructura</div>
+            <div className="col-span-1 text-center leading-tight">F'c</div>
+            <div className="col-span-1 text-center leading-tight">Fecha moldeo</div>
+            <div className="col-span-1 text-center leading-tight">Hora</div>
+            <div className="col-span-1 text-center leading-tight">Edad</div>
+            <div className="col-span-1 text-center leading-tight">Fecha rotura</div>
+            <div className="col-span-1 text-center leading-tight">Densidad</div>
           </div>
           
           {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-12 gap-2 p-3 border-b border-gray-200">
+            <div key={field.id} className="min-w-[980px] grid grid-cols-12 gap-2 p-3 border-b border-gray-200">
               <div className="col-span-1 flex items-center justify-center">
                 <span className="text-sm font-medium">{index + 1}</span>
                 {fields.length > 1 && (
@@ -329,6 +347,14 @@ const OrdenForm: React.FC = () => {
                     ✕
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => duplicateItem(index)}
+                  className="ml-2 text-blue-500 hover:text-blue-700 text-xs"
+                  title="Duplicar muestra"
+                >
+                  ⧉
+                </button>
               </div>
               <div className="col-span-2">
                 <input
