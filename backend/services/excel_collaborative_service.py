@@ -223,6 +223,26 @@ class ExcelCollaborativeService:
                 except Exception as e:
                     print(f"❌ Error aplicando estilo a {col}{row_num}: {e}")
                     pass
+            
+            # COPIAR LA ALTURA DE LA FILA DE REFERENCIA (fila 39 - último item original)
+            try:
+                fila_referencia = 39  # Última fila de item original
+                altura_original = worksheet.row_dimensions[fila_referencia].height
+                if altura_original:
+                    worksheet.row_dimensions[row_num].height = altura_original
+                    print(f"📏 Altura copiada de fila {fila_referencia} ({altura_original}) a fila {row_num}")
+                else:
+                    # Si no hay altura definida, usar una altura estándar
+                    worksheet.row_dimensions[row_num].height = 15.0
+                    print(f"📏 Altura estándar aplicada a fila {row_num}: 15.0")
+            except Exception as e:
+                print(f"❌ Error copiando altura a fila {row_num}: {e}")
+                # Aplicar altura estándar como fallback
+                try:
+                    worksheet.row_dimensions[row_num].height = 15.0
+                    print(f"📏 Altura fallback aplicada a fila {row_num}: 15.0")
+                except:
+                    pass
 
         filas_disponibles = fila_seccion_inferior - fila_inicio
         cantidad = len(muestras)
