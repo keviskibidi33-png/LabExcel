@@ -226,6 +226,9 @@ class ExcelCollaborativeService:
             filas_extra = cantidad - filas_disponibles
             ultima_fila_muestra = fila_seccion_inferior + filas_extra - 1
             
+            print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
+            print(f"Última fila de muestra: {ultima_fila_muestra}, Footer empieza en: {fila_footer_inicio}")
+            
             if ultima_fila_muestra >= fila_footer_inicio:
                 # Las muestras van a sobreescribir el footer - mover el footer hacia abajo
                 filas_a_mover_footer = ultima_fila_muestra - fila_footer_inicio + 1
@@ -237,10 +240,6 @@ class ExcelCollaborativeService:
                 # Actualizar la posición del footer
                 fila_footer_inicio += filas_a_mover_footer
                 print(f"Footer movido a fila {fila_footer_inicio}")
-            
-            # NO insertar filas - simplemente extender la tabla hacia abajo
-            # Esto evita empujar la sección inferior y mantiene el formato
-            print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
             
             # Limpiar solo el contenido de las filas que vamos a usar para las muestras extra
             for i in range(filas_extra):
