@@ -1,15 +1,24 @@
 import io
-import openpyxl
-from openpyxl.styles import Alignment
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+import openpyxl
+from openpyxl.styles import Alignment, Border, Side, Font
+
 class ExcelCollaborativeService:
     """Servicio para modificar archivos Excel existentes con datos del formulario"""
     
+    # Constantes para el template
+    TEMPLATE_PATH = "templates/recepcion_template.xlsx"
+    FILA_INICIO_MUESTRAS = 23
+    FILA_FOOTER_ORIGINAL = 42
+    MAX_ITEMS_SIN_EXPANSION = 17
+    ALTURA_FILA_57 = 30.0
+    ALTURA_FILA_ESTANDAR = 15.0
+    
     def __init__(self):
-        self.template_path = "templates/recepcion_template.xlsx"
+        self.template_path = self.TEMPLATE_PATH
     
     def modificar_excel_con_datos(self, recepcion_data: Dict[str, Any], muestras: List[Dict[str, Any]], 
                                  template_path: Optional[str] = None) -> bytes:
@@ -187,7 +196,7 @@ class ExcelCollaborativeService:
                 pass
         
         # Tabla de muestras comienza en fila 23
-        fila_inicio = 23
+        fila_inicio = self.FILA_INICIO_MUESTRAS
         
         # FOOTER COMPLETAMENTE FLEXIBLE - se mueve según la cantidad de items
         # Calcular dónde debe empezar el footer dinámicamente
@@ -200,8 +209,6 @@ class ExcelCollaborativeService:
 
         def apply_table_style_to_row(row_num: int):
             """Aplicar estilo de tabla simple a una fila"""
-            from openpyxl.styles import Border, Side, Alignment, Font
-            
             # Crear borde simple para tabla
             thin_border = Border(
                 left=Side(style='thin'),
@@ -235,14 +242,14 @@ class ExcelCollaborativeService:
                     print(f"📏 Altura copiada de fila {fila_referencia} ({altura_original}) a fila {row_num}")
                 else:
                     # Si no hay altura definida, usar una altura estándar
-                    worksheet.row_dimensions[row_num].height = 15.0
-                    print(f"📏 Altura estándar aplicada a fila {row_num}: 15.0")
+                    worksheet.row_dimensions[row_num].height = self.ALTURA_FILA_ESTANDAR
+                    print(f"📏 Altura estándar aplicada a fila {row_num}: {self.ALTURA_FILA_ESTANDAR}")
             except Exception as e:
                 print(f"❌ Error copiando altura a fila {row_num}: {e}")
                 # Aplicar altura estándar como fallback
                 try:
-                    worksheet.row_dimensions[row_num].height = 15.0
-                    print(f"📏 Altura fallback aplicada a fila {row_num}: 15.0")
+                    worksheet.row_dimensions[row_num].height = self.ALTURA_FILA_ESTANDAR
+                    print(f"📏 Altura fallback aplicada a fila {row_num}: {self.ALTURA_FILA_ESTANDAR}")
                 except:
                     pass
 
@@ -261,9 +268,9 @@ class ExcelCollaborativeService:
                 print(f"🔧 Desfusionado rango {merged_range} que afectaba fila {fila_desfusionar}")
         
         # SEGUNDO: MOVER EL FOOTER PRESERVANDO SU ESTRUCTURA ORIGINAL
-        if cantidad > 17:  # Si hay más de 17 items, mover el footer
+        if cantidad > self.MAX_ITEMS_SIN_EXPANSION:  # Si hay más de 17 items, mover el footer
             # El footer original empieza en fila 42, lo movemos a la nueva posición
-            fila_footer_original = 42
+            fila_footer_original = self.FILA_FOOTER_ORIGINAL
             filas_a_mover = fila_footer_inicio - fila_footer_original
             
             if filas_a_mover > 0:
@@ -301,8 +308,8 @@ class ExcelCollaborativeService:
                 for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
                     try:
                         footer_column_widths[col] = worksheet.column_dimensions[col].width
-                except:
-                    pass
+                    except:
+                        pass
                 
                 # Mover el footer
                 worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
@@ -362,16 +369,16 @@ class ExcelCollaborativeService:
                 try:
                     # Calcular la fila 57 en la nueva posición
                     fila_57_nueva = 57 + filas_a_mover
-                    worksheet.row_dimensions[fila_57_nueva].height = 30.0  # Altura suficiente para texto completo
-                    print(f"✅ Aumentada altura de fila {fila_57_nueva} a 30.0 para visibilidad completa del texto")
+                    worksheet.row_dimensions[fila_57_nueva].height = self.ALTURA_FILA_57
+                    print(f"✅ Aumentada altura de fila {fila_57_nueva} a {self.ALTURA_FILA_57} para visibilidad completa del texto")
                 except Exception as e:
                     print(f"⚠️  Error ajustando altura de fila 57: {e}")
                     pass
             
             # Asegurar que la fila 57 tenga altura suficiente para texto completo (incluso si no se movió el footer)
             try:
-                worksheet.row_dimensions[57].height = 30.0
-                print(f"✅ Asegurando altura de fila 57 a 30.0 para visibilidad completa del texto")
+                worksheet.row_dimensions[57].height = self.ALTURA_FILA_57
+                print(f"✅ Asegurando altura de fila 57 a {self.ALTURA_FILA_57} para visibilidad completa del texto")
             except Exception as e:
                 print(f"⚠️  Error ajustando altura de fila 57: {e}")
                 pass
