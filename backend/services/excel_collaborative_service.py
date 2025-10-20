@@ -233,14 +233,16 @@ class ExcelCollaborativeService:
             # Esto evita empujar la sección inferior y mantiene el formato
             print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
             
-            # Limpiar solo las filas que realmente vamos a usar para las muestras extra
-            # La fila 40 ya tiene estilos del template, solo limpiar contenido
+            # Limpiar completamente las filas que vamos a usar para las muestras extra
             for i in range(filas_extra):
                 fila_destino = fila_seccion_inferior + i  # Fila 40, 41, etc.
-                # Limpiar contenido de las filas que vamos a usar
+                # Limpiar TODO el contenido de las filas que vamos a usar
                 for col in columnas_tabla:
                     try:
                         worksheet[f'{col}{fila_destino}'].value = None
+                        # También limpiar formato para asegurar que no hay restos del footer
+                        worksheet[f'{col}{fila_destino}'].border = None
+                        worksheet[f'{col}{fila_destino}'].fill = None
                     except:
                         pass
             
