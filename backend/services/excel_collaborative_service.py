@@ -246,63 +246,7 @@ class ExcelCollaborativeService:
                 except:
                     pass
 
-        # LIMPIAR TODAS LAS FILAS QUE VAN A CONTENER ITEMS ANTES DE PROCESAR
-        print(f"🧹 Limpiando TODAS las filas que van a contener items (23 a {fila_inicio + cantidad - 1})")
-        for fila_limpiar in range(fila_inicio, fila_inicio + cantidad):
-            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
-                try:
-                    cell_ref = f'{col}{fila_limpiar}'
-                    cell = worksheet[cell_ref]
-                    
-                    # Verificar si es una celda fusionada
-                    is_merged = False
-                    for merged_range in worksheet.merged_cells.ranges:
-                        if cell_ref in merged_range:
-                            is_merged = True
-                            # Si está fusionada, limpiar la celda superior izquierda
-                            top_left = merged_range.min_row, merged_range.min_col
-                            top_left_cell = worksheet.cell(row=top_left[0], column=top_left[1])
-                            top_left_cell.value = None
-                            print(f"🧹 Limpiado celda fusionada {cell_ref}")
-                            break
-                    
-                    if not is_merged:
-                        # Limpiar celda normal
-                        cell.value = None
-                        
-                except Exception as e:
-                    print(f"⚠️  Error limpiando {col}{fila_limpiar}: {e}")
-                    pass
-        
-        # LIMPIAR ESPECÍFICAMENTE LA FILA 42 (donde está el "NO" fijo)
-        print(f"🧹 Limpiando ESPECÍFICAMENTE la fila 42 (donde está el 'NO' fijo)")
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
-            try:
-                cell_ref = f'{col}42'
-                cell = worksheet[cell_ref]
-                
-                # Verificar si es una celda fusionada
-                is_merged = False
-                for merged_range in worksheet.merged_cells.ranges:
-                    if cell_ref in merged_range:
-                        is_merged = True
-                        # Si está fusionada, limpiar la celda superior izquierda
-                        top_left = merged_range.min_row, merged_range.min_col
-                        top_left_cell = worksheet.cell(row=top_left[0], column=top_left[1])
-                        top_left_cell.value = None
-                        print(f"🧹 Limpiado celda fusionada {cell_ref} (celda superior: {top_left[0]},{top_left[1]})")
-                        break
-                
-                if not is_merged:
-                    # Limpiar celda normal
-                    cell.value = None
-                    print(f"🧹 Limpiado {cell_ref}")
-                    
-            except Exception as e:
-                print(f"⚠️  Error limpiando {col}42: {e}")
-                pass
-        
-        # FOOTER FLEXIBLE - mover el footer original a la nueva posición
+        # PRIMERO: MOVER EL FOOTER ANTES DE ESCRIBIR DATOS
         if cantidad > 17:  # Si hay más de 17 items, mover el footer
             # El footer original empieza en fila 42, lo movemos a la nueva posición
             fila_footer_original = 42
