@@ -189,11 +189,13 @@ class ExcelCollaborativeService:
         # Tabla de muestras comienza en fila 23
         fila_inicio = 23
 
-        # Auto-expandir: insertar filas extra si llegan más muestras de las que soporta el template
-        # La siguiente sección fija del template comienza desde la fila 40 para evitar empujar textos
-        # Pero insertamos las filas ANTES de la sección fija, no en ella
-        fila_seccion_inferior = 40
-        fila_footer_inicio = 42  # Footer empieza en fila 42
+        # FOOTER COMPLETAMENTE FLEXIBLE - se mueve según la cantidad de items
+        # Calcular dónde debe empezar el footer dinámicamente
+        cantidad = len(muestras)
+        fila_footer_inicio = fila_inicio + cantidad + 1  # +1 para la línea delgada después del último item
+        
+        print(f"🔧 Footer flexible: {cantidad} items, footer empieza en fila {fila_footer_inicio}")
+        
         columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
 
         def apply_table_style_to_row(row_num: int):
@@ -244,61 +246,27 @@ class ExcelCollaborativeService:
                 except:
                     pass
 
-        filas_disponibles = fila_seccion_inferior - fila_inicio
-        cantidad = len(muestras)
-        
-        # Verificar si las muestras extra van a sobreescribir el footer
-        if cantidad > filas_disponibles:
-            filas_extra = cantidad - filas_disponibles
-            ultima_fila_muestra = fila_seccion_inferior + filas_extra - 1
+        # FOOTER FLEXIBLE - mover el footer original a la nueva posición
+        if cantidad > 17:  # Si hay más de 17 items, mover el footer
+            # El footer original empieza en fila 42, lo movemos a la nueva posición
+            fila_footer_original = 42
+            filas_a_mover = fila_footer_inicio - fila_footer_original
             
-            print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
-            print(f"Última fila de muestra: {ultima_fila_muestra}, Footer empieza en: {fila_footer_inicio}")
-            
-            # SIEMPRE mover el footer si hay items extra, para dejar espacio para la línea delgada
-            if cantidad > filas_disponibles:
-                # Calcular cuántas filas necesitamos para todos los items + línea delgada
-                filas_necesarias = filas_extra + 1  # +1 para la línea delgada
-                print(f"⚠️  Moviendo footer {filas_necesarias} filas hacia abajo para dar espacio a {filas_extra} items extra + línea delgada")
-                
-                # Mover el footer completo (incluyendo línea delgada) hacia abajo
-                worksheet.insert_rows(fila_footer_inicio, amount=filas_necesarias)
-                
-                # Actualizar la posición del footer
-                fila_footer_inicio += filas_necesarias
-                print(f"Footer movido a fila {fila_footer_inicio}")
-            
-            # Limpiar solo el contenido de las filas que vamos a usar para las muestras extra
-            for i in range(filas_extra):
-                fila_destino = fila_seccion_inferior + i  # Fila 40, 41, etc.
-                # Limpiar solo el valor, no los estilos
-                for col in columnas_tabla:
-                    try:
-                        cell = worksheet[f'{col}{fila_destino}']
-                        # Verificar si es una celda fusionada
-                        if hasattr(cell, 'value') and not hasattr(cell, 'coordinate'):
-                            # Es una celda fusionada, no podemos modificar su valor
-                            continue
-                        cell.value = None
-                    except Exception as e:
-                        print(f"Error limpiando {col}{fila_destino}: {e}")
-                        pass
+            if filas_a_mover > 0:
+                print(f"🔄 Moviendo footer {filas_a_mover} filas hacia abajo (de {fila_footer_original} a {fila_footer_inicio})")
+                worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
+                print(f"✅ Footer movido exitosamente")
             
             # Aplicar estilo de tabla a TODAS las filas que van a contener muestras
-            # Esto incluye la fila 40 (item 18) y las filas 41+ (items 19+)
-            for i in range(filas_extra):  # Empezar desde 0 para incluir fila 40
-                fila_destino = fila_seccion_inferior + i  # Fila 40, 41, 42, etc.
-                print(f"Aplicando estilo de tabla a fila {fila_destino}")
-                apply_table_style_to_row(fila_destino)
+            for i in range(cantidad):
+                fila_actual = fila_inicio + i
+                if fila_actual >= 40:  # Solo aplicar estilo a filas 40+
+                    print(f"Aplicando estilo de tabla a fila {fila_actual}")
+                    apply_table_style_to_row(fila_actual)
         
         for i, muestra in enumerate(muestras):
-            # Calcular la fila correcta considerando las filas extendidas
-            if i < filas_disponibles:
-                # Usar las filas originales (23-39)
-                fila_actual = fila_inicio + i
-            else:
-                # Usar las filas extendidas (40+)
-                fila_actual = fila_seccion_inferior + (i - filas_disponibles)
+            # SIMPLIFICADO - cada item va en su fila secuencial
+            fila_actual = fila_inicio + i  # Fila 23, 24, 25... hasta 23+cantidad-1
             
             print(f"📝 Procesando item {i+1} en fila {fila_actual}")
             
