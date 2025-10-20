@@ -76,7 +76,7 @@ const OrdenForm: React.FC = () => {
     };
   };
 
-  const { register, control, handleSubmit, formState: { errors }, reset } = useForm<OrdenFormData>({
+  const { register, control, handleSubmit, formState: { errors }, reset, getValues } = useForm<OrdenFormData>({
     defaultValues: {
       ...generateUniqueNumbers(),
       muestras: [{ 
@@ -108,19 +108,20 @@ const OrdenForm: React.FC = () => {
   });
 
   const duplicateItem = (index: number) => {
-    const source = fields[index] as any;
+    // Tomar los valores actuales del formulario para la fila
+    const source = getValues(`muestras.${index}`) as Partial<ItemOrden>;
     const clone: ItemOrden = {
       item_numero: fields.length + 1,
-      codigo_muestra: source.codigo_muestra || '',
-      codigo_muestra_lem: (source as any).codigo_muestra_lem || '',
-      identificacion_muestra: source.identificacion_muestra || '',
-      estructura: source.estructura || '',
-      fc_kg_cm2: source.fc_kg_cm2 ?? DEFAULT_FC_VALUE,
-      fecha_moldeo: source.fecha_moldeo || '',
-      hora_moldeo: source.hora_moldeo || '',
-      edad: source.edad ?? DEFAULT_EDAD_VALUE,
-      fecha_rotura: source.fecha_rotura || '',
-      requiere_densidad: !!source.requiere_densidad,
+      codigo_muestra: source?.codigo_muestra || '',
+      codigo_muestra_lem: source?.codigo_muestra_lem || '',
+      identificacion_muestra: source?.identificacion_muestra || '',
+      estructura: source?.estructura || '',
+      fc_kg_cm2: source?.fc_kg_cm2 ?? DEFAULT_FC_VALUE,
+      fecha_moldeo: source?.fecha_moldeo || '',
+      hora_moldeo: source?.hora_moldeo || '',
+      edad: source?.edad ?? DEFAULT_EDAD_VALUE,
+      fecha_rotura: source?.fecha_rotura || '',
+      requiere_densidad: !!source?.requiere_densidad,
     };
     insert(index + 1, clone);
   };
