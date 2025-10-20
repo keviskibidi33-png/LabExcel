@@ -202,15 +202,46 @@ class ExcelCollaborativeService:
                     src = worksheet[f"{col}{src_row}"]
                     dst = worksheet[f"{col}{dst_row}"]
                     
-                    # Copiar estilos de forma segura
+                    # Copiar estilos creando nuevos objetos (no referencias)
+                    from openpyxl.styles import Font, Alignment, Border, PatternFill
+                    
+                    # Copiar font
                     if src.font:
-                        dst.font = src.font
+                        dst.font = Font(
+                            name=src.font.name,
+                            size=src.font.size,
+                            bold=src.font.bold,
+                            italic=src.font.italic,
+                            color=src.font.color
+                        )
+                    
+                    # Copiar alignment
                     if src.alignment:
-                        dst.alignment = src.alignment
+                        dst.alignment = Alignment(
+                            horizontal=src.alignment.horizontal,
+                            vertical=src.alignment.vertical,
+                            wrap_text=src.alignment.wrap_text
+                        )
+                    
+                    # Copiar border
                     if src.border:
-                        dst.border = src.border
+                        dst.border = Border(
+                            left=src.border.left,
+                            right=src.border.right,
+                            top=src.border.top,
+                            bottom=src.border.bottom
+                        )
+                    
+                    # Copiar fill
                     if src.fill:
-                        dst.fill = src.fill
+                        if hasattr(src.fill, 'fgColor') and src.fill.fgColor:
+                            dst.fill = PatternFill(
+                                start_color=src.fill.fgColor.rgb,
+                                end_color=src.fill.fgColor.rgb,
+                                fill_type=src.fill.fill_type
+                            )
+                    
+                    # Copiar number_format
                     if src.number_format:
                         dst.number_format = src.number_format
                         
@@ -247,7 +278,12 @@ class ExcelCollaborativeService:
                 # Limpiar solo el valor, no los estilos
                 for col in columnas_tabla:
                     try:
-                        worksheet[f'{col}{fila_destino}'].value = None
+                        cell = worksheet[f'{col}{fila_destino}']
+                        # Verificar si es una celda fusionada
+                        if hasattr(cell, 'value') and not hasattr(cell, 'coordinate'):
+                            # Es una celda fusionada, no podemos modificar su valor
+                            continue
+                        cell.value = None
                     except Exception as e:
                         print(f"Error limpiando {col}{fila_destino}: {e}")
                         pass
