@@ -196,57 +196,26 @@ class ExcelCollaborativeService:
         fila_footer_inicio = 42  # Footer empieza en fila 42
         columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
 
-        def copy_row_style(src_row: int, dst_row: int):
+        def apply_table_style_to_row(row_num: int):
+            """Aplicar estilo de tabla simple a una fila"""
+            from openpyxl.styles import Border, Side, Alignment
+            
+            # Crear borde simple para tabla
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            # Aplicar estilo a todas las columnas de la tabla
             for col in columnas_tabla:
                 try:
-                    src = worksheet[f"{col}{src_row}"]
-                    dst = worksheet[f"{col}{dst_row}"]
-                    
-                    # Copiar estilos creando nuevos objetos (no referencias)
-                    from openpyxl.styles import Font, Alignment, Border, PatternFill
-                    
-                    # Copiar font
-                    if src.font:
-                        dst.font = Font(
-                            name=src.font.name,
-                            size=src.font.size,
-                            bold=src.font.bold,
-                            italic=src.font.italic,
-                            color=src.font.color
-                        )
-                    
-                    # Copiar alignment
-                    if src.alignment:
-                        dst.alignment = Alignment(
-                            horizontal=src.alignment.horizontal,
-                            vertical=src.alignment.vertical,
-                            wrap_text=src.alignment.wrap_text
-                        )
-                    
-                    # Copiar border
-                    if src.border:
-                        dst.border = Border(
-                            left=src.border.left,
-                            right=src.border.right,
-                            top=src.border.top,
-                            bottom=src.border.bottom
-                        )
-                    
-                    # Copiar fill
-                    if src.fill:
-                        if hasattr(src.fill, 'fgColor') and src.fill.fgColor:
-                            dst.fill = PatternFill(
-                                start_color=src.fill.fgColor.rgb,
-                                end_color=src.fill.fgColor.rgb,
-                                fill_type=src.fill.fill_type
-                            )
-                    
-                    # Copiar number_format
-                    if src.number_format:
-                        dst.number_format = src.number_format
-                        
+                    cell = worksheet[f'{col}{row_num}']
+                    cell.border = thin_border
+                    cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 except Exception as e:
-                    print(f"Error copiando estilo de {col}{src_row} a {col}{dst_row}: {e}")
+                    print(f"Error aplicando estilo a {col}{row_num}: {e}")
                     pass
 
         filas_disponibles = fila_seccion_inferior - fila_inicio
@@ -288,12 +257,11 @@ class ExcelCollaborativeService:
                         print(f"Error limpiando {col}{fila_destino}: {e}")
                         pass
             
-            # Copiar estilo de tabla a TODAS las filas que van a contener muestras
+            # Aplicar estilo de tabla a TODAS las filas que van a contener muestras
             # Esto incluye la fila 40 (item 18) y las filas 41+ (items 19+)
-            estilo_base_row = fila_seccion_inferior - 1  # Fila 39 (última fila de tabla)
             for i in range(filas_extra):  # Empezar desde 0 para incluir fila 40
                 fila_destino = fila_seccion_inferior + i  # Fila 40, 41, 42, etc.
-                copy_row_style(estilo_base_row, fila_destino)
+                apply_table_style_to_row(fila_destino)
         
         for i, muestra in enumerate(muestras):
             # Calcular la fila correcta considerando las filas extendidas
