@@ -17,7 +17,7 @@ class ExcelCollaborativeService:
         
         # Ruta del template
         template_file = template_path or self.template_path
-        print(f"USANDO TEMPLATE: {template_file}")
+        # print(f"USANDO TEMPLATE: {template_file}")
         
         # Cargar template directamente
         workbook = openpyxl.load_workbook(template_file)
@@ -40,15 +40,16 @@ class ExcelCollaborativeService:
                                 # Cambiar "X" por "Descripción" en el texto fusionado
                                 new_value = str(target_cell.value).replace('X', 'Descripción')
                                 target_cell.value = new_value
-                                print(f"Cambiado 'X' por 'Descripción' en celda fusionada {target_cell.coordinate}: '{new_value}'")
+                                # Cambio aplicado en rango fusionado
                             break
                     else:
                         # Si no está fusionada, cambiar directamente
                         worksheet[cell_ref].value = str(cell_value).replace('X', 'Descripción')
-                        print(f"Cambiado 'X' por 'Descripción' en {cell_ref}")
+                        # Cambio aplicado en celda no fusionada
                     break
-        except Exception as e:
-            print(f"Error cambiando X por Descripción: {e}")
+        except Exception:
+            # Evitar interrumpir flujo por ajustes de encabezado
+            pass
         
         # Rellenar datos
         self._rellenar_datos_recepcion(worksheet, recepcion_data)
@@ -60,7 +61,7 @@ class ExcelCollaborativeService:
         workbook.save(excel_buffer)
         excel_buffer.seek(0)
         
-        print("TEMPLATE REAL USADO EXITOSAMENTE")
+        # print("TEMPLATE REAL USADO EXITOSAMENTE")
         return excel_buffer.getvalue()
     
     def _rellenar_datos_recepcion(self, worksheet, recepcion_data: Dict[str, Any]):
@@ -93,8 +94,9 @@ class ExcelCollaborativeService:
                     target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 # Mantener altura original del template
                 
-            except Exception as e:
-                print(f"Error en celda {cell_ref}: {e}")
+            except Exception:
+                # No interrumpir por errores de formato puntuales
+                pass
         
         # Datos principales
         safe_set_cell('D6', recepcion_data.get('numero_recepcion', ''))
@@ -170,8 +172,9 @@ class ExcelCollaborativeService:
                     target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 # Mantener altura original del template
                 
-            except Exception as e:
-                print(f"Error en celda {cell_ref}: {e}")
+            except Exception:
+                # No interrumpir por errores de formato puntuales
+                pass
         
         # Tabla de muestras comienza en fila 23
         fila_inicio = 23
@@ -188,7 +191,13 @@ class ExcelCollaborativeService:
             
             # Llenar datos - Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
             safe_set_cell(f'A{fila_actual}', i + 1)  # Número
-            safe_set_cell(f'B{fila_actual}', muestra.get('codigo_muestra_lem', ''))  # Código muestra LEM
+            b_ref = f'B{fila_actual}'
+            safe_set_cell(b_ref, muestra.get('codigo_muestra_lem', ''))  # Código muestra LEM
+            try:
+                # Forzar formato texto en columna B para preservar ceros
+                worksheet[b_ref].number_format = '@'
+            except Exception:
+                pass
             safe_set_cell(f'D{fila_actual}', muestra.get('identificacion_muestra', ''))  # Identificación muestra
             safe_set_cell(f'E{fila_actual}', muestra.get('estructura', ''))  # Estructura
             safe_set_cell(f'F{fila_actual}', muestra.get('fc_kg_cm2', ''))  # F'c
@@ -198,7 +207,7 @@ class ExcelCollaborativeService:
             safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
             safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
         
-        print(f"Muestras procesadas: {len(muestras)}")
+        # print(f"Muestras procesadas: {len(muestras)}")
     
     def _ajustar_ancho_columnas(self, worksheet):
         """Ajustar el ancho de las columnas"""
@@ -212,7 +221,8 @@ class ExcelCollaborativeService:
             
             # No ajustar altura de fila 8 - código de trazabilidad eliminado
             
-            print("Columnas ajustadas a anchos originales")
+            # print("Columnas ajustadas a anchos originales")
             
-        except Exception as e:
-            print(f"Error ajustando columnas: {e}")
+        except Exception:
+            # No detener por ajustes visuales
+            pass
