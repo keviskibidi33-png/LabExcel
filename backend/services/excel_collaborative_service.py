@@ -178,6 +178,34 @@ class ExcelCollaborativeService:
         
         # Tabla de muestras comienza en fila 23
         fila_inicio = 23
+
+        # Auto-expandir: insertar filas extra si llegan más muestras de las que soporta el template
+        # La siguiente sección fija del template comienza alrededor de la fila 46 (H46, B46 labels)
+        fila_seccion_inferior = 46
+        columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
+
+        def copy_row_style(src_row: int, dst_row: int):
+            for col in columnas_tabla:
+                try:
+                    src = worksheet[f"{col}{src_row}"]
+                    dst = worksheet[f"{col}{dst_row}"]
+                    dst.font = src.font
+                    dst.alignment = src.alignment
+                    dst.border = src.border
+                    dst.fill = src.fill
+                    dst.number_format = src.number_format
+                except Exception:
+                    pass
+
+        filas_disponibles = fila_seccion_inferior - fila_inicio
+        cantidad = len(muestras)
+        if cantidad > filas_disponibles:
+            filas_extra = cantidad - filas_disponibles
+            worksheet.insert_rows(fila_seccion_inferior, amount=filas_extra)
+            # Copiar estilo de la última fila de la tabla original hacia las nuevas
+            estilo_base_row = fila_seccion_inferior - 1
+            for i in range(filas_extra):
+                copy_row_style(estilo_base_row, fila_seccion_inferior + i)
         
         for i, muestra in enumerate(muestras):
             fila_actual = fila_inicio + i
