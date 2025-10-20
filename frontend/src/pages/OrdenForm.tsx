@@ -76,7 +76,7 @@ const OrdenForm: React.FC = () => {
     };
   };
 
-  const { register, control, handleSubmit, formState: { errors }, reset, getValues } = useForm<OrdenFormData>({
+  const { register, control, handleSubmit, formState: { errors }, reset, getValues, setValue } = useForm<OrdenFormData>({
     defaultValues: {
       ...generateUniqueNumbers(),
       muestras: [{ 
@@ -236,7 +236,7 @@ const OrdenForm: React.FC = () => {
     // Tomar los valores actuales del formulario para la fila
     const source = getValues(`muestras.${index}`) as Partial<ItemOrden>;
     const clone: ItemOrden = {
-      item_numero: fields.length + 1,
+      item_numero: index + 2, // Número secuencial basado en posición
       codigo_muestra: source?.codigo_muestra || '',
       codigo_muestra_lem: source?.codigo_muestra_lem || '',
       identificacion_muestra: source?.identificacion_muestra || '',
@@ -249,6 +249,18 @@ const OrdenForm: React.FC = () => {
       requiere_densidad: !!source?.requiere_densidad,
     };
     insert(index + 1, clone);
+    
+    // Recalcular números de item para mantener secuencia
+    const currentValues = getValues('muestras');
+    const updatedMuestras = currentValues.map((muestra, idx) => ({
+      ...muestra,
+      item_numero: idx + 1
+    }));
+    
+    // Actualizar todos los valores del formulario
+    updatedMuestras.forEach((muestra, idx) => {
+      setValue(`muestras.${idx}`, muestra);
+    });
   };
 
   return (
