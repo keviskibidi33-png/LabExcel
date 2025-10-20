@@ -188,7 +188,7 @@ class ExcelCollaborativeService:
         
         # Tabla de muestras comienza en fila 23
         fila_inicio = 23
-
+        
         # FOOTER COMPLETAMENTE FLEXIBLE - se mueve según la cantidad de items
         # Calcular dónde debe empezar el footer dinámicamente
         cantidad = len(muestras)
@@ -246,7 +246,21 @@ class ExcelCollaborativeService:
                 except:
                     pass
 
-        # PRIMERO: MOVER EL FOOTER ANTES DE ESCRIBIR DATOS
+        # PRIMERO: DESFUSIONAR CELDAS EN LAS FILAS QUE VAN A CONTENER ITEMS
+        print(f"🔧 Desfusionando celdas en filas que van a contener items (23 a {fila_inicio + cantidad - 1})")
+        for fila_desfusionar in range(fila_inicio, fila_inicio + cantidad):
+            # Obtener todos los rangos fusionados que afectan esta fila
+            merged_ranges_to_remove = []
+            for merged_range in worksheet.merged_cells.ranges:
+                if merged_range.min_row <= fila_desfusionar <= merged_range.max_row:
+                    merged_ranges_to_remove.append(merged_range)
+            
+            # Remover los rangos fusionados
+            for merged_range in merged_ranges_to_remove:
+                worksheet.unmerge_cells(str(merged_range))
+                print(f"🔧 Desfusionado rango {merged_range} que afectaba fila {fila_desfusionar}")
+        
+        # SEGUNDO: MOVER EL FOOTER ANTES DE ESCRIBIR DATOS
         if cantidad > 17:  # Si hay más de 17 items, mover el footer
             # El footer original empieza en fila 42, lo movemos a la nueva posición
             fila_footer_original = 42
@@ -289,7 +303,7 @@ class ExcelCollaborativeService:
             safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))  # Edad
             safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
             safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
-            
+        
             print(f"✅ Item {i+1} completado en fila {fila_actual}")
         
         # print(f"Muestras procesadas: {len(muestras)}")
