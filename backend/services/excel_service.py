@@ -176,23 +176,51 @@ class ExcelService:
             ws['H9'] = recepcion.numero_ot
         
         # Llenar muestras
-        row = 24
+        def safe_set_cell(cell_ref, value):
+            cell = ws[cell_ref]
+            target_cell = cell
+            # Resolver celdas fusionadas si aplica
+            for merged_range in ws.merged_cells.ranges:
+                if cell_ref in merged_range:
+                    top_left = merged_range.min_row, merged_range.min_col
+                    target_cell = ws.cell(row=top_left[0], column=top_left[1])
+                    break
+            target_cell.value = value
+            return target_cell
+
+        row = 23  # Unificar con servicios colaborativos: la tabla inicia en fila 23
         for item in recepcion.muestras:
-            if row <= 43:  # Máximo 20 muestras
-                # Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
-                ws[f'B{row}'] = getattr(item, 'codigo_muestra_lem', '')  # Código muestra LEM
-                ws[f'D{row}'] = getattr(item, 'identificacion_muestra', '')  # Identificación muestra
-                ws[f'E{row}'] = getattr(item, 'estructura', '')  # Estructura
-                ws[f'F{row}'] = getattr(item, 'fc_kg_cm2', 280)  # F'c
+            if row <= 43:  # Máximo 21 filas (23..43)
+                # Limpiar celdas de la fila antes de escribir
+                for col in ['A','B','C','D','E','F','G','H','I','J','K']:
+                    try:
+                        ws[f'{col}{row}'].value = None
+                    except Exception:
+                        pass
+
+                # Secuencia: N° (A) → Código muestra LEM (B) → Identificación (D) → Estructura (E)
+                # A: número secuencial
+                safe_set_cell(f'A{row}', getattr(item, 'item_numero', None) or (row - 22))
+
+                # B: código muestra LEM (forzar formato texto para no perder ceros ni notación)
+                b_cell = safe_set_cell(f'B{row}', getattr(item, 'codigo_muestra_lem', ''))
+                try:
+                    b_cell.number_format = '@'
+                except Exception:
+                    pass
+
+                # D/E y demás campos
+                safe_set_cell(f'D{row}', getattr(item, 'identificacion_muestra', ''))
+                safe_set_cell(f'E{row}', getattr(item, 'estructura', ''))
+                safe_set_cell(f'F{row}', getattr(item, 'fc_kg_cm2', 280))
                 if hasattr(item, 'fecha_moldeo') and item.fecha_moldeo:
-                    ws[f'G{row}'] = item.fecha_moldeo.strftime("%d/%m/%y")
+                    safe_set_cell(f'G{row}', item.fecha_moldeo.strftime("%d/%m/%y"))
                 if hasattr(item, 'hora_moldeo') and item.hora_moldeo:
-                    ws[f'H{row}'] = item.hora_moldeo
-                ws[f'I{row}'] = getattr(item, 'edad', 10)
+                    safe_set_cell(f'H{row}', item.hora_moldeo)
+                safe_set_cell(f'I{row}', getattr(item, 'edad', 10))
                 if hasattr(item, 'fecha_rotura') and item.fecha_rotura:
-                    ws[f'J{row}'] = item.fecha_rotura.strftime("%d/%m/%y")
-                # Columna J para densidad SI/NO
-                ws[f'K{row}'] = 'SI' if getattr(item, 'requiere_densidad', False) else 'NO'
+                    safe_set_cell(f'J{row}', item.fecha_rotura.strftime("%d/%m/%y"))
+                safe_set_cell(f'K{row}', 'SI' if getattr(item, 'requiere_densidad', False) else 'NO')
                 row += 1
         
         # Fecha estimada de culminación

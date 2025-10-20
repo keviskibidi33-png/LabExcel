@@ -132,8 +132,10 @@ def _prepare_muestras_data_for_excel(muestras: List[MuestraConcreto]) -> List[di
     
     muestras_dict = []
     for muestra in muestras:
+        # Incluir explicitamente codigo_muestra_lem para columna B
         muestras_dict.append({
             'item_numero': muestra.item_numero or 0,
+            'codigo_muestra_lem': getattr(muestra, 'codigo_muestra_lem', '') or '',
             'codigo_muestra': muestra.codigo_muestra or '',
             'identificacion_muestra': muestra.identificacion_muestra or '',
             'estructura': muestra.estructura or '',
