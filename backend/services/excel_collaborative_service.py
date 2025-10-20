@@ -193,6 +193,7 @@ class ExcelCollaborativeService:
         # La siguiente sección fija del template comienza desde la fila 40 para evitar empujar textos
         # Pero insertamos las filas ANTES de la sección fija, no en ella
         fila_seccion_inferior = 40
+        fila_footer_inicio = 42  # Footer empieza en fila 42
         columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
 
         def copy_row_style(src_row: int, dst_row: int):
@@ -210,8 +211,24 @@ class ExcelCollaborativeService:
 
         filas_disponibles = fila_seccion_inferior - fila_inicio
         cantidad = len(muestras)
+        
+        # Verificar si las muestras extra van a sobreescribir el footer
         if cantidad > filas_disponibles:
             filas_extra = cantidad - filas_disponibles
+            ultima_fila_muestra = fila_seccion_inferior + filas_extra - 1
+            
+            if ultima_fila_muestra >= fila_footer_inicio:
+                # Las muestras van a sobreescribir el footer - mover el footer hacia abajo
+                filas_a_mover_footer = ultima_fila_muestra - fila_footer_inicio + 1
+                print(f"⚠️  Muestras van a sobreescribir footer - moviendo {filas_a_mover_footer} filas hacia abajo")
+                
+                # Mover el footer hacia abajo insertando filas
+                worksheet.insert_rows(fila_footer_inicio, amount=filas_a_mover_footer)
+                
+                # Actualizar la posición del footer
+                fila_footer_inicio += filas_a_mover_footer
+                print(f"Footer movido a fila {fila_footer_inicio}")
+            
             # NO insertar filas - simplemente extender la tabla hacia abajo
             # Esto evita empujar la sección inferior y mantiene el formato
             print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
