@@ -201,12 +201,21 @@ class ExcelCollaborativeService:
                 try:
                     src = worksheet[f"{col}{src_row}"]
                     dst = worksheet[f"{col}{dst_row}"]
-                    dst.font = src.font
-                    dst.alignment = src.alignment
-                    dst.border = src.border
-                    dst.fill = src.fill
-                    dst.number_format = src.number_format
-                except Exception:
+                    
+                    # Copiar estilos de forma segura
+                    if src.font:
+                        dst.font = src.font
+                    if src.alignment:
+                        dst.alignment = src.alignment
+                    if src.border:
+                        dst.border = src.border
+                    if src.fill:
+                        dst.fill = src.fill
+                    if src.number_format:
+                        dst.number_format = src.number_format
+                        
+                except Exception as e:
+                    print(f"Error copiando estilo de {col}{src_row} a {col}{dst_row}: {e}")
                     pass
 
         filas_disponibles = fila_seccion_inferior - fila_inicio
@@ -233,17 +242,15 @@ class ExcelCollaborativeService:
             # Esto evita empujar la sección inferior y mantiene el formato
             print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
             
-            # Limpiar completamente las filas que vamos a usar para las muestras extra
+            # Limpiar solo el contenido de las filas que vamos a usar para las muestras extra
             for i in range(filas_extra):
                 fila_destino = fila_seccion_inferior + i  # Fila 40, 41, etc.
-                # Limpiar TODO el contenido de las filas que vamos a usar
+                # Limpiar solo el valor, no los estilos
                 for col in columnas_tabla:
                     try:
                         worksheet[f'{col}{fila_destino}'].value = None
-                        # También limpiar formato para asegurar que no hay restos del footer
-                        worksheet[f'{col}{fila_destino}'].border = None
-                        worksheet[f'{col}{fila_destino}'].fill = None
-                    except:
+                    except Exception as e:
+                        print(f"Error limpiando {col}{fila_destino}: {e}")
                         pass
             
             # Copiar estilo de tabla a TODAS las filas que van a contener muestras
