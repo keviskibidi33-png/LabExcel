@@ -300,6 +300,8 @@ class ExcelCollaborativeService:
                 # Usar las filas extendidas (40+)
                 fila_actual = fila_seccion_inferior + (i - filas_disponibles)
             
+            print(f"📝 Procesando item {i+1} en fila {fila_actual}")
+            
             # Limpiar celdas
             for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
                 try:
@@ -324,6 +326,8 @@ class ExcelCollaborativeService:
             safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))  # Edad
             safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
             safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
+            
+            print(f"✅ Item {i+1} completado en fila {fila_actual}")
         
         # print(f"Muestras procesadas: {len(muestras)}")
     
