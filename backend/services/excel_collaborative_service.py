@@ -296,6 +296,14 @@ class ExcelCollaborativeService:
                     if merged_range.min_row >= fila_footer_original:
                         footer_merged_ranges.append(merged_range)
                 
+                # Guardar anchos de columnas del footer
+                footer_column_widths = {}
+                for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
+                    try:
+                        footer_column_widths[col] = worksheet.column_dimensions[col].width
+                    except:
+                        pass
+                
                 # Mover el footer
                 worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
                 
@@ -336,6 +344,16 @@ class ExcelCollaborativeService:
                         print(f"🔧 Restaurado rango fusionado: {new_range}")
                     except Exception as e:
                         print(f"⚠️  Error restaurando rango fusionado: {e}")
+                        pass
+                
+                # RESTAURAR ANCHOS DE COLUMNAS DEL FOOTER
+                for col, width in footer_column_widths.items():
+                    try:
+                        if width:
+                            worksheet.column_dimensions[col].width = width
+                            print(f"🔧 Restaurado ancho de columna {col}: {width}")
+                    except Exception as e:
+                        print(f"⚠️  Error restaurando ancho de columna {col}: {e}")
                         pass
                 
                 print(f"✅ Footer movido y restaurado exitosamente")
