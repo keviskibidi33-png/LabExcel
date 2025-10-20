@@ -301,8 +301,8 @@ class ExcelCollaborativeService:
                 for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
                     try:
                         footer_column_widths[col] = worksheet.column_dimensions[col].width
-                    except:
-                        pass
+                except:
+                    pass
                 
                 # Mover el footer
                 worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
@@ -357,6 +357,24 @@ class ExcelCollaborativeService:
                         pass
                 
                 print(f"✅ Footer movido y restaurado exitosamente")
+                
+                # Aumentar altura de la fila 57 para que el texto se vea completamente
+                try:
+                    # Calcular la fila 57 en la nueva posición
+                    fila_57_nueva = 57 + filas_a_mover
+                    worksheet.row_dimensions[fila_57_nueva].height = 30.0  # Altura suficiente para texto completo
+                    print(f"✅ Aumentada altura de fila {fila_57_nueva} a 30.0 para visibilidad completa del texto")
+                except Exception as e:
+                    print(f"⚠️  Error ajustando altura de fila 57: {e}")
+                    pass
+            
+            # Asegurar que la fila 57 tenga altura suficiente para texto completo (incluso si no se movió el footer)
+            try:
+                worksheet.row_dimensions[57].height = 30.0
+                print(f"✅ Asegurando altura de fila 57 a 30.0 para visibilidad completa del texto")
+            except Exception as e:
+                print(f"⚠️  Error ajustando altura de fila 57: {e}")
+                pass
             
             # Aplicar estilo de tabla a TODAS las filas que van a contener muestras
             for i in range(cantidad):
