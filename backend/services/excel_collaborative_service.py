@@ -270,11 +270,21 @@ class ExcelCollaborativeService:
             
             print(f"📝 Procesando item {i+1} en fila {fila_actual}")
             
-            # Limpiar celdas
-            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
+            # LIMPIAR CELDAS COMPLETAMENTE - incluir columna K
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
                 try:
-                    worksheet[f'{col}{fila_actual}'].value = None
-                except:
+                    cell = worksheet[f'{col}{fila_actual}']
+                    # Limpiar valor y estilos
+                    cell.value = None
+                    # Limpiar bordes y relleno para evitar conflictos
+                    try:
+                        cell.border = None
+                        cell.fill = None
+                    except:
+                        pass
+                    print(f"🧹 Limpiado {col}{fila_actual}")
+                except Exception as e:
+                    print(f"⚠️  Error limpiando {col}{fila_actual}: {e}")
                     pass
             
             # Llenar datos - Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
