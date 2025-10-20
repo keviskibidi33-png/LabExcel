@@ -5,10 +5,10 @@ import { toast } from 'react-hot-toast';
 
 // Imports optimizados
 import { createOrden, downloadPDF, downloadExcel } from '../services/api';
-import { OrdenFormData, MuestraConcretoData } from '../types';
-import { VALIDATION_PATTERNS, DEFAULT_VALUES, MESSAGES, FORM_CONFIG } from '../constants';
-import { FormValidator, Formatter } from '../utils/validation';
-import { getCurrentDate, getCurrentTime } from '../utils/dateUtils';
+// import { OrdenFormData, MuestraConcretoData } from '../types'; // eliminado: definimos las interfaces localmente
+// import { VALIDATION_PATTERNS, DEFAULT_VALUES, MESSAGES, FORM_CONFIG } from '../constants';
+// import { FormValidator, Formatter } from '../utils/validation';
+// import { getCurrentDate, getCurrentTime } from '../utils/dateUtils';
 
 // Constantes
 const DATE_FORMAT_REGEX = /^\d{2}\/\d{2}\/\d{4}$/;
@@ -107,25 +107,6 @@ const OrdenForm: React.FC = () => {
     name: 'muestras'
   });
 
-  const duplicateItem = (index: number) => {
-    // Tomar los valores actuales del formulario para la fila
-    const source = getValues(`muestras.${index}`) as Partial<ItemOrden>;
-    const clone: ItemOrden = {
-      item_numero: fields.length + 1,
-      codigo_muestra: source?.codigo_muestra || '',
-      codigo_muestra_lem: source?.codigo_muestra_lem || '',
-      identificacion_muestra: source?.identificacion_muestra || '',
-      estructura: source?.estructura || '',
-      fc_kg_cm2: source?.fc_kg_cm2 ?? DEFAULT_FC_VALUE,
-      fecha_moldeo: source?.fecha_moldeo || '',
-      hora_moldeo: source?.hora_moldeo || '',
-      edad: source?.edad ?? DEFAULT_EDAD_VALUE,
-      fecha_rotura: source?.fecha_rotura || '',
-      requiere_densidad: !!source?.requiere_densidad,
-    };
-    insert(index + 1, clone);
-  };
-
   const createOrdenMutation = useMutation(createOrden, {
     onSuccess: () => {
       toast.success('Orden de trabajo creada exitosamente');
@@ -173,7 +154,7 @@ const OrdenForm: React.FC = () => {
       };
       
       const result = await createOrdenMutation.mutateAsync(dataWithUniqueNumbers);
-      setCreatedRecepcionId(result.id);
+      setCreatedRecepcionId(((result as unknown) as any)?.id ?? null);
       toast.success('Recepción creada exitosamente');
     } catch (error) {
       console.error('Error al enviar formulario:', error);
@@ -231,6 +212,7 @@ const OrdenForm: React.FC = () => {
     append({
       item_numero: fields.length + 1,
       codigo_muestra: '',
+      codigo_muestra_lem: '',
       identificacion_muestra: '',
       estructura: '',
       fc_kg_cm2: DEFAULT_FC_VALUE,
@@ -246,6 +228,25 @@ const OrdenForm: React.FC = () => {
     if (fields.length > 1) {
       remove(index);
     }
+  };
+
+  const duplicateItem = (index: number) => {
+    // Tomar los valores actuales del formulario para la fila
+    const source = getValues(`muestras.${index}`) as Partial<ItemOrden>;
+    const clone: ItemOrden = {
+      item_numero: fields.length + 1,
+      codigo_muestra: source?.codigo_muestra || '',
+      codigo_muestra_lem: source?.codigo_muestra_lem || '',
+      identificacion_muestra: source?.identificacion_muestra || '',
+      estructura: source?.estructura || '',
+      fc_kg_cm2: source?.fc_kg_cm2 ?? DEFAULT_FC_VALUE,
+      fecha_moldeo: source?.fecha_moldeo || '',
+      hora_moldeo: source?.hora_moldeo || '',
+      edad: source?.edad ?? DEFAULT_EDAD_VALUE,
+      fecha_rotura: source?.fecha_rotura || '',
+      requiere_densidad: !!source?.requiere_densidad,
+    };
+    insert(index + 1, clone);
   };
 
   return (
