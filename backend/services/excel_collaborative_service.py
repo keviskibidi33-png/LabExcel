@@ -273,10 +273,26 @@ class ExcelCollaborativeService:
             # LIMPIAR CELDAS COMPLETAMENTE - incluir columna K
             for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
                 try:
-                    cell = worksheet[f'{col}{fila_actual}']
-                    # Solo limpiar el valor, NO los estilos (evita errores de OpenPyXL)
-                    cell.value = None
-                    print(f"🧹 Limpiado {col}{fila_actual}")
+                    cell_ref = f'{col}{fila_actual}'
+                    cell = worksheet[cell_ref]
+                    
+                    # Verificar si es una celda fusionada
+                    is_merged = False
+                    for merged_range in worksheet.merged_cells.ranges:
+                        if cell_ref in merged_range:
+                            is_merged = True
+                            # Si está fusionada, limpiar la celda superior izquierda
+                            top_left = merged_range.min_row, merged_range.min_col
+                            top_left_cell = worksheet.cell(row=top_left[0], column=top_left[1])
+                            top_left_cell.value = None
+                            print(f"🧹 Limpiado celda fusionada {cell_ref} (celda superior: {top_left[0]},{top_left[1]})")
+                            break
+                    
+                    if not is_merged:
+                        # Limpiar celda normal
+                        cell.value = None
+                        print(f"🧹 Limpiado {cell_ref}")
+                        
                 except Exception as e:
                     print(f"⚠️  Error limpiando {col}{fila_actual}: {e}")
                     pass
