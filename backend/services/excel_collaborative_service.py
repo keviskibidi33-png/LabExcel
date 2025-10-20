@@ -272,6 +272,7 @@ class ExcelCollaborativeService:
                 # COPIAR EL FOOTER COMPLETO ANTES DE MOVERLO
                 footer_data = {}
                 footer_styles = {}
+                footer_merged_ranges = []
                 
                 # Guardar datos y estilos del footer original (filas 42-60)
                 for row in range(fila_footer_original, 61):  # Guardar hasta fila 60
@@ -289,6 +290,11 @@ class ExcelCollaborativeService:
                             }
                         except:
                             pass
+                
+                # Guardar rangos fusionados del footer
+                for merged_range in worksheet.merged_cells.ranges:
+                    if merged_range.min_row >= fila_footer_original:
+                        footer_merged_ranges.append(merged_range)
                 
                 # Mover el footer
                 worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
@@ -314,6 +320,23 @@ class ExcelCollaborativeService:
                         except Exception as e:
                             print(f"⚠️  Error restaurando {col}{row}: {e}")
                             pass
+                
+                # RESTAURAR RANGOS FUSIONADOS DEL FOOTER
+                for merged_range in footer_merged_ranges:
+                    try:
+                        # Calcular nuevo rango fusionado
+                        new_min_row = merged_range.min_row + filas_a_mover
+                        new_max_row = merged_range.max_row + filas_a_mover
+                        new_min_col = merged_range.min_col
+                        new_max_col = merged_range.max_col
+                        
+                        # Crear nuevo rango fusionado
+                        new_range = f"{worksheet.cell(row=new_min_row, column=new_min_col).coordinate}:{worksheet.cell(row=new_max_row, column=new_max_col).coordinate}"
+                        worksheet.merge_cells(new_range)
+                        print(f"🔧 Restaurado rango fusionado: {new_range}")
+                    except Exception as e:
+                        print(f"⚠️  Error restaurando rango fusionado: {e}")
+                        pass
                 
                 print(f"✅ Footer movido y restaurado exitosamente")
             
