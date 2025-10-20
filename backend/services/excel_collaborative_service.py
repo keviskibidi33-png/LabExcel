@@ -274,14 +274,8 @@ class ExcelCollaborativeService:
             for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
                 try:
                     cell = worksheet[f'{col}{fila_actual}']
-                    # Limpiar valor y estilos
+                    # Solo limpiar el valor, NO los estilos (evita errores de OpenPyXL)
                     cell.value = None
-                    # Limpiar bordes y relleno para evitar conflictos
-                    try:
-                        cell.border = None
-                        cell.fill = None
-                    except:
-                        pass
                     print(f"🧹 Limpiado {col}{fila_actual}")
                 except Exception as e:
                     print(f"⚠️  Error limpiando {col}{fila_actual}: {e}")
