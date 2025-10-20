@@ -274,6 +274,18 @@ class ExcelCollaborativeService:
                     print(f"⚠️  Error limpiando {col}{fila_limpiar}: {e}")
                     pass
         
+        # LIMPIAR ESPECÍFICAMENTE LA FILA 42 (donde está el "NO" fijo)
+        print(f"🧹 Limpiando ESPECÍFICAMENTE la fila 42 (donde está el 'NO' fijo)")
+        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+            try:
+                cell_ref = f'{col}42'
+                cell = worksheet[cell_ref]
+                cell.value = None
+                print(f"🧹 Limpiado {cell_ref}")
+            except Exception as e:
+                print(f"⚠️  Error limpiando {col}42: {e}")
+                pass
+        
         # FOOTER FLEXIBLE - mover el footer original a la nueva posición
         if cantidad > 17:  # Si hay más de 17 items, mover el footer
             # El footer original empieza en fila 42, lo movemos a la nueva posición
