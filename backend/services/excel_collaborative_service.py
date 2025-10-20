@@ -160,7 +160,17 @@ class ExcelCollaborativeService:
                         target_cell = worksheet.cell(row=top_left[0], column=top_left[1])
                         break
                 
+                # Preservar el estilo existente (especialmente bordes) antes de escribir el valor
+                existing_border = target_cell.border
+                existing_fill = target_cell.fill
+                existing_font = target_cell.font
+                
                 target_cell.value = value
+                
+                # Restaurar estilos preservados
+                target_cell.border = existing_border
+                target_cell.fill = existing_fill
+                target_cell.font = existing_font
                 
                 # Centrar las X en los cuadros de checkboxes
                 if cell_ref in ['B46', 'B47'] and value == 'X':
