@@ -244,13 +244,12 @@ class ExcelCollaborativeService:
                     except:
                         pass
             
-            # Solo copiar estilo a las filas que realmente necesitan estilo de tabla
-            # La fila 40 ya tiene sus estilos del template, solo copiar a 41+
-            if filas_extra > 1:  # Solo si hay más de 1 fila extra
-                estilo_base_row = fila_seccion_inferior - 1  # Fila 39 (última fila de tabla)
-                for i in range(1, filas_extra):  # Empezar desde 1, no 0
-                    fila_destino = fila_seccion_inferior + i  # Fila 41, 42, etc.
-                    copy_row_style(estilo_base_row, fila_destino)
+            # Copiar estilo de tabla a TODAS las filas que van a contener muestras
+            # Esto incluye la fila 40 (item 18) y las filas 41+ (items 19+)
+            estilo_base_row = fila_seccion_inferior - 1  # Fila 39 (última fila de tabla)
+            for i in range(filas_extra):  # Empezar desde 0 para incluir fila 40
+                fila_destino = fila_seccion_inferior + i  # Fila 40, 41, 42, etc.
+                copy_row_style(estilo_base_row, fila_destino)
         
         for i, muestra in enumerate(muestras):
             # Calcular la fila correcta considerando las filas extendidas
