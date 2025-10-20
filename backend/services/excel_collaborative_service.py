@@ -260,7 +260,7 @@ class ExcelCollaborativeService:
                 worksheet.unmerge_cells(str(merged_range))
                 print(f"🔧 Desfusionado rango {merged_range} que afectaba fila {fila_desfusionar}")
         
-        # SEGUNDO: MOVER EL FOOTER ANTES DE ESCRIBIR DATOS
+        # SEGUNDO: MOVER EL FOOTER PRESERVANDO SU ESTRUCTURA ORIGINAL
         if cantidad > 17:  # Si hay más de 17 items, mover el footer
             # El footer original empieza en fila 42, lo movemos a la nueva posición
             fila_footer_original = 42
@@ -268,8 +268,54 @@ class ExcelCollaborativeService:
             
             if filas_a_mover > 0:
                 print(f"🔄 Moviendo footer {filas_a_mover} filas hacia abajo (de {fila_footer_original} a {fila_footer_inicio})")
+                
+                # COPIAR EL FOOTER COMPLETO ANTES DE MOVERLO
+                footer_data = {}
+                footer_styles = {}
+                
+                # Guardar datos y estilos del footer original (filas 42-60)
+                for row in range(fila_footer_original, 61):  # Guardar hasta fila 60
+                    for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
+                        try:
+                            cell_ref = f'{col}{row}'
+                            cell = worksheet[cell_ref]
+                            footer_data[cell_ref] = cell.value
+                            # Guardar estilos importantes
+                            footer_styles[cell_ref] = {
+                                'border': cell.border,
+                                'fill': cell.fill,
+                                'font': cell.font,
+                                'alignment': cell.alignment
+                            }
+                        except:
+                            pass
+                
+                # Mover el footer
                 worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
-                print(f"✅ Footer movido exitosamente")
+                
+                # RESTAURAR EL FOOTER EN SU NUEVA POSICIÓN
+                for row in range(fila_footer_inicio, fila_footer_inicio + 19):  # Restaurar 19 filas del footer
+                    for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
+                        try:
+                            original_row = row - filas_a_mover
+                            original_cell_ref = f'{col}{original_row}'
+                            new_cell_ref = f'{col}{row}'
+                            
+                            if original_cell_ref in footer_data:
+                                worksheet[new_cell_ref].value = footer_data[original_cell_ref]
+                                
+                                # Restaurar estilos
+                                if original_cell_ref in footer_styles:
+                                    styles = footer_styles[original_cell_ref]
+                                    worksheet[new_cell_ref].border = styles['border']
+                                    worksheet[new_cell_ref].fill = styles['fill']
+                                    worksheet[new_cell_ref].font = styles['font']
+                                    worksheet[new_cell_ref].alignment = styles['alignment']
+                        except Exception as e:
+                            print(f"⚠️  Error restaurando {col}{row}: {e}")
+                            pass
+                
+                print(f"✅ Footer movido y restaurado exitosamente")
             
             # Aplicar estilo de tabla a TODAS las filas que van a contener muestras
             for i in range(cantidad):
