@@ -191,6 +191,7 @@ class ExcelCollaborativeService:
 
         # Auto-expandir: insertar filas extra si llegan más muestras de las que soporta el template
         # La siguiente sección fija del template comienza desde la fila 40 para evitar empujar textos
+        # Pero insertamos las filas ANTES de la sección fija, no en ella
         fila_seccion_inferior = 40
         columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
 
@@ -211,14 +212,37 @@ class ExcelCollaborativeService:
         cantidad = len(muestras)
         if cantidad > filas_disponibles:
             filas_extra = cantidad - filas_disponibles
-            worksheet.insert_rows(fila_seccion_inferior, amount=filas_extra)
-            # Copiar estilo de la última fila de la tabla original hacia las nuevas
-            estilo_base_row = fila_seccion_inferior - 1
+            # NO insertar filas - simplemente extender la tabla hacia abajo
+            # Esto evita empujar la sección inferior y mantiene el formato
+            print(f"Extendiendo tabla: {filas_extra} filas extra necesarias")
+            
+            # Limpiar solo las filas que realmente vamos a usar para las muestras extra
+            # La fila 40 ya tiene estilos del template, solo limpiar contenido
             for i in range(filas_extra):
-                copy_row_style(estilo_base_row, fila_seccion_inferior + i)
+                fila_destino = fila_seccion_inferior + i  # Fila 40, 41, etc.
+                # Limpiar contenido de las filas que vamos a usar
+                for col in columnas_tabla:
+                    try:
+                        worksheet[f'{col}{fila_destino}'].value = None
+                    except:
+                        pass
+            
+            # Solo copiar estilo a las filas que realmente necesitan estilo de tabla
+            # La fila 40 ya tiene sus estilos del template, solo copiar a 41+
+            if filas_extra > 1:  # Solo si hay más de 1 fila extra
+                estilo_base_row = fila_seccion_inferior - 1  # Fila 39 (última fila de tabla)
+                for i in range(1, filas_extra):  # Empezar desde 1, no 0
+                    fila_destino = fila_seccion_inferior + i  # Fila 41, 42, etc.
+                    copy_row_style(estilo_base_row, fila_destino)
         
         for i, muestra in enumerate(muestras):
-            fila_actual = fila_inicio + i
+            # Calcular la fila correcta considerando las filas extendidas
+            if i < filas_disponibles:
+                # Usar las filas originales (23-39)
+                fila_actual = fila_inicio + i
+            else:
+                # Usar las filas extendidas (40+)
+                fila_actual = fila_seccion_inferior + (i - filas_disponibles)
             
             # Limpiar celdas
             for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']:
