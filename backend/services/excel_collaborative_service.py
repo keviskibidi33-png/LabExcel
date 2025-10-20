@@ -180,8 +180,8 @@ class ExcelCollaborativeService:
         fila_inicio = 23
 
         # Auto-expandir: insertar filas extra si llegan más muestras de las que soporta el template
-        # La siguiente sección fija del template comienza alrededor de la fila 46 (H46, B46 labels)
-        fila_seccion_inferior = 46
+        # La siguiente sección fija del template comienza desde la fila 40 para evitar empujar textos
+        fila_seccion_inferior = 40
         columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
 
         def copy_row_style(src_row: int, dst_row: int):
