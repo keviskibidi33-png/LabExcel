@@ -198,7 +198,7 @@ class ExcelCollaborativeService:
 
         def apply_table_style_to_row(row_num: int):
             """Aplicar estilo de tabla simple a una fila"""
-            from openpyxl.styles import Border, Side, Alignment
+            from openpyxl.styles import Border, Side, Alignment, Font
             
             # Crear borde simple para tabla
             thin_border = Border(
@@ -208,14 +208,20 @@ class ExcelCollaborativeService:
                 bottom=Side(style='thin')
             )
             
+            # Crear fuente simple
+            simple_font = Font(name='Arial', size=10)
+            
             # Aplicar estilo a todas las columnas de la tabla
             for col in columnas_tabla:
                 try:
                     cell = worksheet[f'{col}{row_num}']
+                    # Aplicar todos los estilos
                     cell.border = thin_border
                     cell.alignment = Alignment(horizontal='left', vertical='bottom')
+                    cell.font = simple_font
+                    print(f"✅ Estilo aplicado a {col}{row_num}")
                 except Exception as e:
-                    print(f"Error aplicando estilo a {col}{row_num}: {e}")
+                    print(f"❌ Error aplicando estilo a {col}{row_num}: {e}")
                     pass
 
         filas_disponibles = fila_seccion_inferior - fila_inicio
@@ -230,11 +236,11 @@ class ExcelCollaborativeService:
             print(f"Última fila de muestra: {ultima_fila_muestra}, Footer empieza en: {fila_footer_inicio}")
             
             if ultima_fila_muestra >= fila_footer_inicio:
-                # Las muestras van a sobreescribir el footer - mover el footer hacia abajo
+                # Las muestras van a sobreescribir el footer - mover TODO el footer hacia abajo
                 filas_a_mover_footer = ultima_fila_muestra - fila_footer_inicio + 1
                 print(f"⚠️  Muestras van a sobreescribir footer - moviendo {filas_a_mover_footer} filas hacia abajo")
                 
-                # Mover el footer hacia abajo insertando filas
+                # Mover el footer completo (incluyendo línea delgada) hacia abajo
                 worksheet.insert_rows(fila_footer_inicio, amount=filas_a_mover_footer)
                 
                 # Actualizar la posición del footer
@@ -261,6 +267,7 @@ class ExcelCollaborativeService:
             # Esto incluye la fila 40 (item 18) y las filas 41+ (items 19+)
             for i in range(filas_extra):  # Empezar desde 0 para incluir fila 40
                 fila_destino = fila_seccion_inferior + i  # Fila 40, 41, 42, etc.
+                print(f"Aplicando estilo de tabla a fila {fila_destino}")
                 apply_table_style_to_row(fila_destino)
         
         for i, muestra in enumerate(muestras):
