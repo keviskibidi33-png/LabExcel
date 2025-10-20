@@ -111,7 +111,7 @@ const OrdenForm: React.FC = () => {
     onSuccess: () => {
       toast.success('Orden de trabajo creada exitosamente');
       queryClient.invalidateQueries('ordenes');
-      reset();
+      // No reset: mantener los datos en el formulario para validación manual
     },
     onError: (error: any) => {
       toast.error(`Error al crear orden: ${error.message}`);
@@ -155,6 +155,8 @@ const OrdenForm: React.FC = () => {
       
       const result = await createOrdenMutation.mutateAsync(dataWithUniqueNumbers);
       setCreatedRecepcionId(((result as unknown) as any)?.id ?? null);
+      // Mantener datos ingresados; mostrar aviso para permitir validación antes de limpiar
+      toast.success('Puedes revisar los datos en el formulario. Si deseas, descarga PDF/Excel.');
       toast.success('Recepción creada exitosamente');
     } catch (error) {
       console.error('Error al enviar formulario:', error);
