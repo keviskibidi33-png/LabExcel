@@ -419,6 +419,8 @@ class ExcelCollaborativeService:
             print(f"✅ Item {i+1} completado en fila {fila_actual}")
         
         # print(f"Muestras procesadas: {len(muestras)}")
+
+        self._eliminar_segunda_linea_web(worksheet)
     
     def _ajustar_ancho_columnas(self, worksheet):
         """Ajustar el ancho de las columnas"""
@@ -437,3 +439,26 @@ class ExcelCollaborativeService:
         except Exception:
             # No detener por ajustes visuales
             pass
+
+    def _eliminar_segunda_linea_web(self, worksheet) -> None:
+        """Elimina el texto duplicado con la información de Web en el footer."""
+
+        ocurrencias = 0
+        for row in range(1, worksheet.max_row + 1):
+            valor = worksheet.cell(row=row, column=1).value
+            if isinstance(valor, str) and "Web: www.geofal.com.pe" in valor:
+                ocurrencias += 1
+                if ocurrencias >= 2:
+                    celda = worksheet.cell(row=row, column=1)
+                    coordenada = celda.coordinate
+                    celda_destino = celda
+                    for merged_range in worksheet.merged_cells.ranges:
+                        if coordenada in merged_range:
+                            celda_destino = worksheet.cell(row=merged_range.min_row, column=merged_range.min_col)
+                            break
+                    celda_destino.value = ""
+                    break
+
+
+
+

@@ -31,9 +31,9 @@ class RecepcionService:
             
             # Crear muestras
             for i, muestra_data in enumerate(recepcion_data.muestras, 1):
-                # Validar que el item_numero sea secuencial
-                if muestra_data.item_numero != i:
-                    raise ValueError(f"El item número debe ser secuencial. Esperado: {i}, recibido: {muestra_data.item_numero}")
+                # Validación más flexible: solo verificar que item_numero sea un número positivo
+                if not isinstance(muestra_data.item_numero, int) or muestra_data.item_numero <= 0:
+                    raise ValueError(f"El item número debe ser un entero positivo. Recibido: {muestra_data.item_numero}")
                 
                 muestra = MuestraConcreto(recepcion_id=recepcion.id, **muestra_data.dict())
                 db.add(muestra)
