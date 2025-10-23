@@ -163,9 +163,11 @@ class OTExcelCollaborativeService:
         for indice, item in enumerate(items):
             fila_actual = fila_inicio + indice
             
-            # ÍTEM y CANTIDAD centrados, CÓDIGO centrado
+            # ÍTEM centrado
             safe_set_cell(f'A{fila_actual}', item.get('item_numero') or indice + 1, center_align=True)
-            safe_set_cell(f'B{fila_actual}', item.get('codigo_muestra', ''), center_align=True)
+            
+            # CÓDIGO DE MUESTRA fusionado en B:C con altura adaptativa
+            safe_merge_and_set_cell(f'B{fila_actual}', f'C{fila_actual}', item.get('codigo_muestra', ''))
             
             # DESCRIPCIÓN en celdas fusionadas D:H (5 columnas) para más espacio
             safe_merge_and_set_cell(f'D{fila_actual}', f'H{fila_actual}', item.get('descripcion', ''))
