@@ -61,6 +61,76 @@ class OTExcelCollaborativeService:
                 print(f"Error escribiendo en {cell_ref}: {e}")
                 pass
         
+        def safe_merge_and_set_cell(start_cell, end_cell, value):
+            """Fusionar celdas y escribir valor"""
+            try:
+                if isinstance(value, str):
+                    value = value.strip()
+                if value is None or value == '':
+                    return
+                
+                # Fusionar celdas
+                worksheet.merge_cells(f'{start_cell}:{end_cell}')
+                
+                # Escribir valor en la celda superior izquierda
+                worksheet[start_cell].value = value
+                
+                # Aplicar alineación (centrada)
+                worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                
+                # Ajustar altura de fila basada en el contenido (sistema adaptativo)
+                fila_numero = int(start_cell[1:])  # Extraer número de fila
+                altura_base = 15
+                
+                # Sistema simplificado: solo 2 casos
+                longitud_texto = len(value)
+                
+                # Contar párrafos (líneas separadas por punto y seguido)
+                parrafos = value.count('. ') + 1  # Aproximación de párrafos
+                
+                if parrafos <= 1 and longitud_texto <= 100:
+                    # 1 párrafo o menos: usar altura del template (no modificar)
+                    altura_final = None  # No modificar altura
+                else:
+                    # Más de 1 párrafo: altura reducida para descripción
+                    altura_adicional = max(15, longitud_texto // 60) * 4  # Más pequeño
+                    altura_final = altura_base + altura_adicional
+                
+                # Solo modificar altura si es necesario
+                if altura_final is not None:
+                    worksheet.row_dimensions[fila_numero].height = altura_final
+                    print(f"Fusionado {start_cell}:{end_cell} con valor: '{value}' (altura: {altura_final})")
+                else:
+                    print(f"Fusionado {start_cell}:{end_cell} con valor: '{value}' (altura: template original)")
+                
+            except Exception as e:
+                print(f"Error fusionando celdas {start_cell}:{end_cell}: {e}")
+                pass
+        
+        def safe_merge_observaciones(start_cell, end_cell, value):
+            """Fusionar celdas para observaciones con altura original del template"""
+            try:
+                if isinstance(value, str):
+                    value = value.strip()
+                if value is None or value == '':
+                    return
+                
+                # Fusionar celdas
+                worksheet.merge_cells(f'{start_cell}:{end_cell}')
+                
+                # Escribir valor con prefijo "OBSERVACIONES:" en la celda superior izquierda
+                worksheet[start_cell].value = f"OBSERVACIONES: {value}"
+                
+                # Aplicar alineación (izquierda, superior) para observaciones
+                worksheet[start_cell].alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+                
+                # NO modificar altura - usar la altura original del template
+                print(f"Fusionado {start_cell}:{end_cell} con valor: '{value}' (altura: template original)")
+                
+            except Exception as e:
+                print(f"Error fusionando observaciones {start_cell}:{end_cell}: {e}")
+                pass
+        
         # Datos principales - CENTRADOS
         safe_set_cell('B6', ot_data.get('numero_ot', ''), center_align=True)
         safe_set_cell('F6', ot_data.get('numero_recepcion', ''), center_align=True)
@@ -84,8 +154,8 @@ class OTExcelCollaborativeService:
         # Duración real - CENTRADA (corregida a D33)
         safe_set_cell('D33', ot_data.get('duracion_real_dias', ''), center_align=True)
         
-        # Observaciones - NO CENTRADA (corregida a C34 según imagen)
-        safe_set_cell('C34', ot_data.get('observaciones', ''))
+        # Observaciones fusionadas desde A34 hasta I37 para evitar que se escape el texto
+        safe_merge_observaciones('A34', 'I37', ot_data.get('observaciones', ''))
         
         # Responsables - CENTRADOS
         safe_set_cell('D38', ot_data.get('aperturada_por', ''), center_align=True)  # Cambiado a D38
@@ -142,8 +212,8 @@ class OTExcelCollaborativeService:
                     # 1 párrafo o menos: usar altura del template (no modificar)
                     altura_final = None  # No modificar altura
                 else:
-                    # Más de 1 párrafo: altura mediana (reducida)
-                    altura_adicional = max(15, longitud_texto // 50) * 6  # Más suave
+                    # Más de 1 párrafo: altura reducida para descripción
+                    altura_adicional = max(15, longitud_texto // 60) * 4  # Más pequeño
                     altura_final = altura_base + altura_adicional
                 
                 # Solo modificar altura si es necesario
