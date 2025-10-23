@@ -105,3 +105,67 @@ class MuestraConcreto(Base):
     
     # Relación con recepción
     recepcion = relationship("RecepcionMuestra", back_populates="muestras")
+
+class OrdenTrabajo(Base):
+    """
+    Modelo principal para órdenes de trabajo
+    """
+    __tablename__ = "orden_trabajo"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    numero_ot = Column(String(50), unique=True, index=True, nullable=False, comment="Número de orden de trabajo")
+    numero_recepcion = Column(String(50), index=True, nullable=False, comment="Número de recepción")
+    
+    # Fechas importantes
+    fecha_recepcion = Column(DateTime, nullable=True, comment="Fecha de recepción")
+    plazo_entrega_dias = Column(Integer, nullable=True, comment="Plazo de entrega en días")
+    
+    # Fechas programadas y reales
+    fecha_inicio_programado = Column(DateTime, nullable=True, comment="Fecha de inicio programada")
+    fecha_fin_programado = Column(DateTime, nullable=True, comment="Fecha de fin programada")
+    fecha_inicio_real = Column(DateTime, nullable=True, comment="Fecha de inicio real")
+    fecha_fin_real = Column(DateTime, nullable=True, comment="Fecha de fin real")
+    
+    # Cálculos de variación
+    variacion_inicio = Column(Integer, nullable=True, comment="Variación de inicio en días")
+    variacion_fin = Column(Integer, nullable=True, comment="Variación de fin en días")
+    duracion_real_dias = Column(Integer, nullable=True, comment="Duración real en días")
+    
+    # Información adicional
+    observaciones = Column(Text, nullable=True, comment="Observaciones generales")
+    aperturada_por = Column(String(100), nullable=True, comment="Persona que aperturó la OT")
+    designada_a = Column(String(100), nullable=True, comment="Persona designada para el trabajo")
+    estado = Column(String(20), nullable=False, default="PENDIENTE", comment="Estado de la OT")
+    
+    # Metadatos del laboratorio
+    codigo_laboratorio = Column(String(20), nullable=False, default="F-LEM-P-01.02", comment="Código del laboratorio")
+    version = Column(String(10), nullable=False, default="07", comment="Versión del documento")
+    
+    # Timestamps
+    fecha_creacion = Column(DateTime, nullable=False, default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime, nullable=True, onupdate=func.now(), comment="Fecha de última actualización")
+    
+    # Relación con items
+    items = relationship("ItemOrdenTrabajo", back_populates="orden_trabajo", cascade="all, delete-orphan")
+
+class ItemOrdenTrabajo(Base):
+    """
+    Modelo para items de orden de trabajo
+    """
+    __tablename__ = "items_orden_trabajo"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    orden_trabajo_id = Column(Integer, ForeignKey("orden_trabajo.id"), nullable=False, comment="ID de la orden de trabajo")
+    item_numero = Column(Integer, nullable=False, comment="Número de item")
+    codigo_muestra = Column(String(50), nullable=True, comment="Código de la muestra")
+    descripcion = Column(String(200), nullable=False, comment="Descripción del item")
+    cantidad = Column(Integer, nullable=False, comment="Cantidad")
+    
+    # Timestamps
+    fecha_creacion = Column(DateTime, nullable=False, default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime, nullable=True, onupdate=func.now(), comment="Fecha de última actualización")
+    
+    # Relación con orden de trabajo
+    orden_trabajo = relationship("OrdenTrabajo", back_populates="items")

@@ -19,6 +19,8 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Órdenes', href: '/ordenes', icon: DocumentTextIcon },
   { name: 'Nueva Recepción', href: '/nueva-orden', icon: PlusIcon },
+  { name: 'Órdenes de Trabajo', href: '/ot', icon: DocumentTextIcon },
+  { name: 'Nueva OT', href: '/ot/new', icon: PlusIcon },
   { name: 'Subir Excel', href: '/upload', icon: CloudArrowUpIcon },
   { name: 'Exportar', href: '/export', icon: CloudArrowDownIcon },
 ]

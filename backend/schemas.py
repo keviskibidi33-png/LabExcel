@@ -199,3 +199,113 @@ class RecepcionMuestraUpdate(BaseModel):
         if v and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
             raise ValueError('Formato de email inválido')
         return v
+
+# Esquemas para Orden de Trabajo
+class ItemOrdenTrabajoBase(BaseModel):
+    """Esquema base para items de orden de trabajo"""
+    item_numero: int = Field(..., ge=1, description="Número de item")
+    codigo_muestra: Optional[str] = Field(None, max_length=50, description="Código de la muestra")
+    descripcion: str = Field(..., min_length=1, max_length=200, description="Descripción del item")
+    cantidad: int = Field(..., ge=1, description="Cantidad")
+    
+    @validator('codigo_muestra', pre=True)
+    def validate_codigo_muestra(cls, v):
+        """Validar código de muestra"""
+        if v is None or v == '':
+            return None
+        return v
+
+class ItemOrdenTrabajoCreate(ItemOrdenTrabajoBase):
+    """Esquema para crear un item de orden de trabajo"""
+    pass
+
+class ItemOrdenTrabajoResponse(ItemOrdenTrabajoBase):
+    """Esquema de respuesta para items de orden de trabajo"""
+    id: int
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class OrdenTrabajoBase(BaseModel):
+    """Esquema base para órdenes de trabajo"""
+    # Campos principales
+    numero_ot: str = Field(..., min_length=1, max_length=50, description="Número de orden de trabajo")
+    numero_recepcion: str = Field(..., min_length=1, max_length=50, description="Número de recepción")
+    
+    # Fechas importantes
+    fecha_recepcion: Optional[str] = Field(None, description="Fecha de recepción (DD/MM/YYYY)")
+    plazo_entrega_dias: Optional[int] = Field(None, ge=0, description="Plazo de entrega en días")
+    
+    # Fechas programadas y reales
+    fecha_inicio_programado: Optional[str] = Field(None, description="Fecha de inicio programada (DD/MM/YYYY)")
+    fecha_fin_programado: Optional[str] = Field(None, description="Fecha de fin programada (DD/MM/YYYY)")
+    fecha_inicio_real: Optional[str] = Field(None, description="Fecha de inicio real (DD/MM/YYYY)")
+    fecha_fin_real: Optional[str] = Field(None, description="Fecha de fin real (DD/MM/YYYY)")
+    
+    # Cálculos de variación
+    variacion_inicio: Optional[int] = Field(None, description="Variación de inicio en días")
+    variacion_fin: Optional[int] = Field(None, description="Variación de fin en días")
+    duracion_real_dias: Optional[int] = Field(None, ge=0, description="Duración real en días")
+    
+    # Información adicional
+    observaciones: Optional[str] = Field(None, description="Observaciones generales")
+    aperturada_por: Optional[str] = Field(None, max_length=100, description="Persona que aperturó la OT")
+    designada_a: Optional[str] = Field(None, max_length=100, description="Persona designada para el trabajo")
+    estado: str = Field("PENDIENTE", max_length=20, description="Estado de la OT")
+    
+    # Metadatos del laboratorio
+    codigo_laboratorio: str = Field("F-LEM-P-01.02", max_length=20, description="Código del laboratorio")
+    version: str = Field("07", max_length=10, description="Versión del documento")
+
+    @validator('fecha_recepcion', 'fecha_inicio_programado', 'fecha_fin_programado', 'fecha_inicio_real', 'fecha_fin_real')
+    def validate_date_format(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v
+
+class OrdenTrabajoCreate(OrdenTrabajoBase):
+    """Esquema para crear una orden de trabajo"""
+    items: List[ItemOrdenTrabajoCreate] = Field(..., min_items=1, description="Lista de items de la orden de trabajo")
+
+class OrdenTrabajoResponse(OrdenTrabajoBase):
+    """Esquema de respuesta para órdenes de trabajo"""
+    id: int
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    items: List[ItemOrdenTrabajoResponse] = Field(default=[], description="Lista de items de la orden de trabajo")
+    
+    @validator('fecha_recepcion', 'fecha_inicio_programado', 'fecha_fin_programado', 'fecha_inicio_real', 'fecha_fin_real', pre=True)
+    def convert_datetime_to_string(cls, v):
+        """Convertir datetime a string en formato DD/MM/YYYY"""
+        if isinstance(v, datetime):
+            return v.strftime('%d/%m/%Y')
+        return v
+    
+    class Config:
+        from_attributes = True
+
+class OrdenTrabajoUpdate(BaseModel):
+    """Esquema para actualizar una orden de trabajo"""
+    fecha_recepcion: Optional[str] = None
+    plazo_entrega_dias: Optional[int] = None
+    fecha_inicio_programado: Optional[str] = None
+    fecha_fin_programado: Optional[str] = None
+    fecha_inicio_real: Optional[str] = None
+    fecha_fin_real: Optional[str] = None
+    variacion_inicio: Optional[int] = None
+    variacion_fin: Optional[int] = None
+    duracion_real_dias: Optional[int] = None
+    observaciones: Optional[str] = None
+    aperturada_por: Optional[str] = None
+    designada_a: Optional[str] = None
+    estado: Optional[str] = None
+
+    @validator('fecha_recepcion', 'fecha_inicio_programado', 'fecha_fin_programado', 'fecha_inicio_real', 'fecha_fin_real')
+    def validate_date_format(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if v and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v

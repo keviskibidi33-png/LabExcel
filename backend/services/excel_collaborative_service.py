@@ -1,10 +1,9 @@
 import io
-import os
+from copy import copy
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 
 import openpyxl
-from openpyxl.styles import Alignment, Border, Side, Font
+from openpyxl.styles import Alignment, Border, Font
 
 class ExcelCollaborativeService:
     """Servicio para modificar archivos Excel existentes con datos del formulario"""
@@ -152,274 +151,69 @@ class ExcelCollaborativeService:
         print("Datos de recepción rellenados")
     
     def _rellenar_datos_muestras(self, worksheet, muestras: List[Dict[str, Any]]):
-        """Rellenar datos de las muestras en la tabla del Excel"""
-        
-        def safe_set_cell(cell_ref, value):
+        """Rellenar datos de las muestras manteniendo el footer en su posición."""
+
+        def safe_set_cell(cell_ref: str, value: Any) -> None:
             try:
                 if isinstance(value, str):
                     value = value.strip()
-                
+
                 cell = worksheet[cell_ref]
-                target_cell = cell
-                
-                # Verificar si es una celda fusionada
+                destino = cell
+
                 for merged_range in worksheet.merged_cells.ranges:
                     if cell_ref in merged_range:
-                        top_left = merged_range.min_row, merged_range.min_col
-                        target_cell = worksheet.cell(row=top_left[0], column=top_left[1])
+                        destino = worksheet.cell(row=merged_range.min_row, column=merged_range.min_col)
                         break
-                
-                # Preservar el estilo existente (especialmente bordes) antes de escribir el valor
-                existing_border = target_cell.border
-                existing_fill = target_cell.fill
-                existing_font = target_cell.font
-                
-                target_cell.value = value
-                
-                # Restaurar estilos preservados
-                target_cell.border = existing_border
-                target_cell.fill = existing_fill
-                target_cell.font = existing_font
-                
-                # Centrar las X en los cuadros de checkboxes
-                if cell_ref in ['B46', 'B47'] and value == 'X':
-                    target_cell.alignment = Alignment(horizontal='center', vertical='center')
-                # Centrar específicamente ciertas celdas
-                elif cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
-                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
-                else:
-                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
-                # Mantener altura original del template
-                
+
+                borde = destino.border
+                relleno = destino.fill
+                fuente = destino.font
+                alineacion = destino.alignment
+
+                destino.value = value
+                destino.border = borde
+                destino.fill = relleno
+                destino.font = fuente
+                destino.alignment = alineacion
             except Exception:
-                # No interrumpir por errores de formato puntuales
                 pass
-        
-        # Tabla de muestras comienza en fila 23
+
+        columnas_tabla = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+
         fila_inicio = self.FILA_INICIO_MUESTRAS
-        
-        # FOOTER COMPLETAMENTE FLEXIBLE - se mueve según la cantidad de items
-        # Calcular dónde debe empezar el footer dinámicamente
-        cantidad = len(muestras)
-        fila_footer_inicio = fila_inicio + cantidad + 1  # +1 para la línea delgada después del último item
-        
-        print(f"🔧 Footer flexible: {cantidad} items, footer empieza en fila {fila_footer_inicio}")
-        
-        columnas_tabla = ['A','B','C','D','E','F','G','H','I','J','K']
+        total_items = len(muestras)
+        altura_item = worksheet.row_dimensions[fila_inicio].height or self.ALTURA_FILA_ESTANDAR
 
-        def apply_table_style_to_row(row_num: int):
-            """Aplicar estilo de tabla simple a una fila"""
-            # Crear borde simple para tabla
-            thin_border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
-            )
-            
-            # Crear fuente simple
-            simple_font = Font(name='Arial', size=10)
-            
-            # Aplicar estilo a todas las columnas de la tabla
-            for col in columnas_tabla:
-                try:
-                    cell = worksheet[f'{col}{row_num}']
-                    # Aplicar todos los estilos
-                    cell.border = thin_border
-                    cell.alignment = Alignment(horizontal='left', vertical='bottom')
-                    cell.font = simple_font
-                    print(f"✅ Estilo aplicado a {col}{row_num}")
-                except Exception as e:
-                    print(f"❌ Error aplicando estilo a {col}{row_num}: {e}")
-                    pass
-            
-            # COPIAR LA ALTURA DE LA FILA DE REFERENCIA (fila 39 - último item original)
-            try:
-                fila_referencia = 39  # Última fila de item original
-                altura_original = worksheet.row_dimensions[fila_referencia].height
-                if altura_original:
-                    worksheet.row_dimensions[row_num].height = altura_original
-                    print(f"📏 Altura copiada de fila {fila_referencia} ({altura_original}) a fila {row_num}")
-                else:
-                    # Si no hay altura definida, usar una altura estándar
-                    worksheet.row_dimensions[row_num].height = self.ALTURA_FILA_ESTANDAR
-                    print(f"📏 Altura estándar aplicada a fila {row_num}: {self.ALTURA_FILA_ESTANDAR}")
-            except Exception as e:
-                print(f"❌ Error copiando altura a fila {row_num}: {e}")
-                # Aplicar altura estándar como fallback
-                try:
-                    worksheet.row_dimensions[row_num].height = self.ALTURA_FILA_ESTANDAR
-                    print(f"📏 Altura fallback aplicada a fila {row_num}: {self.ALTURA_FILA_ESTANDAR}")
-                except:
-                    pass
+        footer_row = self._find_footer_row(worksheet)
+        if not footer_row:
+            raise ValueError("No se encontró el footer en la plantilla original")
 
-        # PRIMERO: DESFUSIONAR CELDAS EN LAS FILAS QUE VAN A CONTENER ITEMS
-        print(f"🔧 Desfusionando celdas en filas que van a contener items (23 a {fila_inicio + cantidad - 1})")
-        for fila_desfusionar in range(fila_inicio, fila_inicio + cantidad):
-            # Obtener todos los rangos fusionados que afectan esta fila
-            merged_ranges_to_remove = []
-            for merged_range in worksheet.merged_cells.ranges:
-                if merged_range.min_row <= fila_desfusionar <= merged_range.max_row:
-                    merged_ranges_to_remove.append(merged_range)
-            
-            # Remover los rangos fusionados
-            for merged_range in merged_ranges_to_remove:
-                worksheet.unmerge_cells(str(merged_range))
-                print(f"🔧 Desfusionado rango {merged_range} que afectaba fila {fila_desfusionar}")
-        
-        # SEGUNDO: MOVER EL FOOTER PRESERVANDO SU ESTRUCTURA ORIGINAL
-        if cantidad > self.MAX_ITEMS_SIN_EXPANSION:  # Si hay más de 17 items, mover el footer
-            # El footer original empieza en fila 42, lo movemos a la nueva posición
-            fila_footer_original = self.FILA_FOOTER_ORIGINAL
-            filas_a_mover = fila_footer_inicio - fila_footer_original
-            
-            if filas_a_mover > 0:
-                print(f"🔄 Moviendo footer {filas_a_mover} filas hacia abajo (de {fila_footer_original} a {fila_footer_inicio})")
-                
-                # COPIAR EL FOOTER COMPLETO ANTES DE MOVERLO
-                footer_data = {}
-                footer_styles = {}
-                footer_merged_ranges = []
-                
-                # Guardar datos y estilos del footer original (filas 42-60)
-                for row in range(fila_footer_original, 61):  # Guardar hasta fila 60
-                    for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
-                        try:
-                            cell_ref = f'{col}{row}'
-                            cell = worksheet[cell_ref]
-                            footer_data[cell_ref] = cell.value
-                            # Guardar estilos importantes
-                            footer_styles[cell_ref] = {
-                                'border': cell.border,
-                                'fill': cell.fill,
-                                'font': cell.font,
-                                'alignment': cell.alignment
-                            }
-                        except:
-                            pass
-                
-                # Guardar rangos fusionados del footer
-                for merged_range in worksheet.merged_cells.ranges:
-                    if merged_range.min_row >= fila_footer_original:
-                        footer_merged_ranges.append(merged_range)
-                
-                # Guardar anchos de columnas del footer
-                footer_column_widths = {}
-                for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
-                    try:
-                        footer_column_widths[col] = worksheet.column_dimensions[col].width
-                    except:
-                        pass
-                
-                # Mover el footer
-                worksheet.insert_rows(fila_footer_original, amount=filas_a_mover)
-                
-                # RESTAURAR EL FOOTER EN SU NUEVA POSICIÓN
-                for row in range(fila_footer_inicio, fila_footer_inicio + 19):  # Restaurar 19 filas del footer
-                    for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
-                        try:
-                            original_row = row - filas_a_mover
-                            original_cell_ref = f'{col}{original_row}'
-                            new_cell_ref = f'{col}{row}'
-                            
-                            if original_cell_ref in footer_data:
-                                worksheet[new_cell_ref].value = footer_data[original_cell_ref]
-                                
-                                # Restaurar estilos
-                                if original_cell_ref in footer_styles:
-                                    styles = footer_styles[original_cell_ref]
-                                    worksheet[new_cell_ref].border = styles['border']
-                                    worksheet[new_cell_ref].fill = styles['fill']
-                                    worksheet[new_cell_ref].font = styles['font']
-                                    worksheet[new_cell_ref].alignment = styles['alignment']
-                        except Exception as e:
-                            print(f"⚠️  Error restaurando {col}{row}: {e}")
-                            pass
-                
-                # RESTAURAR RANGOS FUSIONADOS DEL FOOTER
-                for merged_range in footer_merged_ranges:
-                    try:
-                        # Calcular nuevo rango fusionado
-                        new_min_row = merged_range.min_row + filas_a_mover
-                        new_max_row = merged_range.max_row + filas_a_mover
-                        new_min_col = merged_range.min_col
-                        new_max_col = merged_range.max_col
-                        
-                        # Crear nuevo rango fusionado
-                        new_range = f"{worksheet.cell(row=new_min_row, column=new_min_col).coordinate}:{worksheet.cell(row=new_max_row, column=new_max_col).coordinate}"
-                        worksheet.merge_cells(new_range)
-                        print(f"🔧 Restaurado rango fusionado: {new_range}")
-                    except Exception as e:
-                        print(f"⚠️  Error restaurando rango fusionado: {e}")
-                        pass
-                
-                # RESTAURAR ANCHOS DE COLUMNAS DEL FOOTER
-                for col, width in footer_column_widths.items():
-                    try:
-                        if width:
-                            worksheet.column_dimensions[col].width = width
-                            print(f"🔧 Restaurado ancho de columna {col}: {width}")
-                    except Exception as e:
-                        print(f"⚠️  Error restaurando ancho de columna {col}: {e}")
-                        pass
-                
-                print(f"✅ Footer movido y restaurado exitosamente")
-                
-                # Aumentar altura de la fila 57 para que el texto se vea completamente
-                try:
-                    # Calcular la fila 57 en la nueva posición
-                    fila_57_nueva = 57 + filas_a_mover
-                    worksheet.row_dimensions[fila_57_nueva].height = self.ALTURA_FILA_57
-                    print(f"✅ Aumentada altura de fila {fila_57_nueva} a {self.ALTURA_FILA_57} para visibilidad completa del texto")
-                except Exception as e:
-                    print(f"⚠️  Error ajustando altura de fila 57: {e}")
-                    pass
-            
-            # Asegurar que la fila 57 tenga altura suficiente para texto completo (incluso si no se movió el footer)
+        footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
+        self._unmerge_item_area(worksheet, footer_row)
+
+        for indice, muestra in enumerate(muestras):
+            fila_actual = fila_inicio + indice
+            worksheet.row_dimensions[fila_actual].height = altura_item
+
+            safe_set_cell(f'A{fila_actual}', muestra.get('item_numero') or indice + 1)
+            codigo_ref = f'B{fila_actual}'
+            safe_set_cell(codigo_ref, muestra.get('codigo_muestra_lem', ''))
             try:
-                worksheet.row_dimensions[57].height = self.ALTURA_FILA_57
-                print(f"✅ Asegurando altura de fila 57 a {self.ALTURA_FILA_57} para visibilidad completa del texto")
-            except Exception as e:
-                print(f"⚠️  Error ajustando altura de fila 57: {e}")
-                pass
-            
-            # Aplicar estilo de tabla a TODAS las filas que van a contener muestras
-            for i in range(cantidad):
-                fila_actual = fila_inicio + i
-                if fila_actual >= 40:  # Solo aplicar estilo a filas 40+
-                    print(f"Aplicando estilo de tabla a fila {fila_actual}")
-                    apply_table_style_to_row(fila_actual)
-        
-        for i, muestra in enumerate(muestras):
-            # SIMPLIFICADO - cada item va en su fila secuencial
-            fila_actual = fila_inicio + i  # Fila 23, 24, 25... hasta 23+cantidad-1
-            
-            print(f"📝 Procesando item {i+1} en fila {fila_actual}")
-            
-            # Las celdas ya fueron limpiadas antes del bucle
-            
-            # Llenar datos - Secuencia correcta: N° → Código muestra LEM → Identificación muestra → Estructura
-            safe_set_cell(f'A{fila_actual}', i + 1)  # Número
-            b_ref = f'B{fila_actual}'
-            safe_set_cell(b_ref, muestra.get('codigo_muestra_lem', ''))  # Código muestra LEM
-            try:
-                # Forzar formato texto en columna B para preservar ceros
-                worksheet[b_ref].number_format = '@'
+                worksheet[codigo_ref].number_format = '@'
             except Exception:
                 pass
-            safe_set_cell(f'D{fila_actual}', muestra.get('identificacion_muestra', ''))  # Identificación muestra
-            safe_set_cell(f'E{fila_actual}', muestra.get('estructura', ''))  # Estructura
-            safe_set_cell(f'F{fila_actual}', muestra.get('fc_kg_cm2', ''))  # F'c
-            safe_set_cell(f'G{fila_actual}', muestra.get('fecha_moldeo', ''))  # Fecha moldeo
-            safe_set_cell(f'H{fila_actual}', muestra.get('hora_moldeo', ''))  # Hora moldeo
-            safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))  # Edad
-            safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))  # Fecha rotura
-            safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')  # Densidad
-        
-            print(f"✅ Item {i+1} completado en fila {fila_actual}")
-        
-        # print(f"Muestras procesadas: {len(muestras)}")
+            safe_set_cell(f'D{fila_actual}', muestra.get('identificacion_muestra', ''))
+            safe_set_cell(f'E{fila_actual}', muestra.get('estructura', ''))
+            safe_set_cell(f'F{fila_actual}', muestra.get('fc_kg_cm2', ''))
+            safe_set_cell(f'G{fila_actual}', muestra.get('fecha_moldeo', ''))
+            safe_set_cell(f'H{fila_actual}', muestra.get('hora_moldeo', ''))
+            safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))
+            safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))
+            safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')
+            self._merge_item_row(worksheet, fila_actual)
 
+        self._limpiar_filas_restantes(worksheet, fila_inicio + total_items, footer_row, columnas_tabla)
         self._eliminar_segunda_linea_web(worksheet)
     
     def _ajustar_ancho_columnas(self, worksheet):
@@ -439,6 +233,93 @@ class ExcelCollaborativeService:
         except Exception:
             # No detener por ajustes visuales
             pass
+
+    def _asegurar_capacidad_items(self, worksheet, footer_row: int, total_items: int) -> int:
+        capacidad_actual = footer_row - self.FILA_INICIO_MUESTRAS
+        if total_items <= capacidad_actual:
+            return footer_row
+
+        filas_extra = total_items - capacidad_actual
+        fila_patron = footer_row - 2
+        fila_separador = footer_row - 1
+
+        worksheet.insert_rows(fila_separador, amount=filas_extra)
+
+        for offset in range(filas_extra):
+            fila_destino = fila_separador + offset
+            self._copiar_estilo_fila(worksheet, fila_patron, fila_destino)
+            self._clonar_fusiones_fila(worksheet, fila_patron, fila_destino)
+
+        return footer_row + filas_extra
+
+    def _copiar_estilo_fila(self, worksheet, fila_origen: int, fila_destino: int) -> None:
+        worksheet.row_dimensions[fila_destino].height = worksheet.row_dimensions[fila_origen].height
+
+        columnas = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+        for columna in columnas:
+            celda_origen = worksheet[f'{columna}{fila_origen}']
+            celda_destino = worksheet[f'{columna}{fila_destino}']
+            celda_destino.value = None
+            celda_destino.font = copy(celda_origen.font)
+            celda_destino.border = copy(celda_origen.border)
+            celda_destino.fill = copy(celda_origen.fill)
+            celda_destino.number_format = celda_origen.number_format
+            celda_destino.protection = copy(celda_origen.protection)
+            celda_destino.alignment = copy(celda_origen.alignment)
+        self._merge_item_row(worksheet, fila_destino)
+
+    def _clonar_fusiones_fila(self, worksheet, fila_origen: int, fila_destino: int) -> None:
+        rangos_existentes = {r.coord for r in worksheet.merged_cells.ranges}
+
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.min_row == rango.max_row == fila_origen:
+                celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
+                celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
+                coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
+                if coord not in rangos_existentes:
+                    worksheet.merge_cells(coord)
+                    rangos_existentes.add(coord)
+
+    def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
+        for fila in range(fila_inicio_libre, fila_footer):
+            for columna in columnas:
+                referencia = f'{columna}{fila}'
+                try:
+                    celda = worksheet[referencia]
+                    destino = celda
+                    for rango in worksheet.merged_cells.ranges:
+                        if referencia in rango:
+                            destino = worksheet.cell(row=rango.min_row, column=rango.min_col)
+                            break
+                    destino.value = ""
+                except Exception:
+                    continue
+            self._merge_item_row(worksheet, fila)
+
+    def _find_footer_row(self, worksheet) -> Optional[int]:
+        for fila in range(1, worksheet.max_row + 1):
+            valor = worksheet.cell(row=fila, column=1).value
+            if isinstance(valor, str) and '(1) OBLIGATORIO' in valor:
+                return fila
+        return None
+
+    def _unmerge_item_area(self, worksheet, footer_row: int) -> None:
+        inicio = self.FILA_INICIO_MUESTRAS
+        fin = footer_row - 1
+        to_unmerge = []
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.max_row >= inicio and rango.min_row <= fin:
+                to_unmerge.append(rango.coord)
+        for coord in to_unmerge:
+            worksheet.unmerge_cells(coord)
+
+    @staticmethod
+    def _merge_item_row(worksheet, fila: int) -> None:
+        coord = f"B{fila}:C{fila}"
+        for rango in worksheet.merged_cells.ranges:
+            if rango.coord == coord:
+                return
+        worksheet.merge_cells(coord)
 
     def _eliminar_segunda_linea_web(self, worksheet) -> None:
         """Elimina el texto duplicado con la información de Web en el footer."""

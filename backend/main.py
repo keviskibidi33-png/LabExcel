@@ -21,15 +21,20 @@ from utils.validators import DataValidator
 
 # Base de datos y modelos
 from database import get_db, engine
-from models import Base, RecepcionMuestra, MuestraConcreto
-from schemas import RecepcionMuestraCreate, RecepcionMuestraResponse, MuestraConcretoCreate
+from models import Base, RecepcionMuestra, MuestraConcreto, OrdenTrabajo, ItemOrdenTrabajo
+from schemas import (
+    RecepcionMuestraCreate, RecepcionMuestraResponse, MuestraConcretoCreate,
+    OrdenTrabajoCreate, OrdenTrabajoResponse, OrdenTrabajoUpdate
+)
 
 # Servicios
 from services.excel_service import ExcelService
 from services.orden_service import RecepcionService
+from services.ot_service import OTService
 from services.pdf_service import PDFService
 from services.simple_pdf_service import SimplePDFService
 from services.excel_collaborative_service import ExcelCollaborativeService
+from services.ot_excel_collaborative_service import OTExcelCollaborativeService
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
@@ -63,9 +68,11 @@ async def log_requests(request, call_next):
 # Inicializar servicios
 excel_service = ExcelService()
 recepcion_service = RecepcionService()
+ot_service = OTService()
 pdf_service = PDFService()
 simple_pdf_service = SimplePDFService()
 excel_collaborative_service = ExcelCollaborativeService()
+ot_excel_collaborative_service = OTExcelCollaborativeService()
 
 
 # Funciones auxiliares
@@ -148,6 +155,53 @@ def _prepare_muestras_data_for_excel(muestras: List[MuestraConcreto]) -> List[di
         })
     return muestras_dict
 
+
+def _prepare_ot_data_for_excel(ot: OrdenTrabajo) -> dict:
+    """Preparar datos de orden de trabajo para Excel"""
+    def format_date(date_value):
+        """Formatear fecha de manera segura"""
+        if not date_value:
+            return ''
+        if isinstance(date_value, str):
+            return date_value
+        if hasattr(date_value, 'strftime'):
+            return date_value.strftime('%d/%m/%Y')
+        return str(date_value)
+    
+    return {
+        'numero_ot': ot.numero_ot or '',
+        'numero_recepcion': ot.numero_recepcion or '',
+        'fecha_recepcion': format_date(ot.fecha_recepcion),
+        'plazo_entrega_dias': ot.plazo_entrega_dias or '',
+        'fecha_inicio_programado': format_date(ot.fecha_inicio_programado),
+        'fecha_fin_programado': format_date(ot.fecha_fin_programado),
+        'fecha_inicio_real': format_date(ot.fecha_inicio_real),
+        'fecha_fin_real': format_date(ot.fecha_fin_real),
+        'variacion_inicio': ot.variacion_inicio or '',
+        'variacion_fin': ot.variacion_fin or '',
+        'duracion_real_dias': ot.duracion_real_dias or '',
+        'observaciones': ot.observaciones or '',
+        'aperturada_por': ot.aperturada_por or '',
+        'designada_a': ot.designada_a or '',
+        'estado': ot.estado or '',
+        'codigo_laboratorio': ot.codigo_laboratorio or '',
+        'version': ot.version or ''
+    }
+
+
+def _prepare_items_data_for_excel(items: List[ItemOrdenTrabajo]) -> List[dict]:
+    """Preparar datos de items para Excel"""
+    items_dict = []
+    for item in items:
+        items_dict.append({
+            'item_numero': item.item_numero or 0,
+            'codigo_muestra': item.codigo_muestra or '',
+            'descripcion': item.descripcion or '',
+            'cantidad': item.cantidad or 0
+        })
+    return items_dict
+
+
 @app.get("/")
 async def root():
     return {"message": "Sistema de Gestión Excel - Laboratorio API"}
@@ -162,11 +216,13 @@ async def options_crear_recepcion():
     return {"message": "OK"}
 
 @app.options("/api/debug/ordenes/")
+@app.options("/api/debug/ordenes")
 async def options_debug_ordenes():
     """Manejar peticiones OPTIONS para CORS en debug"""
     return {"message": "OK"}
 
 @app.post("/api/debug/ordenes/")
+@app.post("/api/debug/ordenes")
 async def debug_crear_recepcion(request: dict):
     """Endpoint de debug para ver qué datos está enviando el frontend"""
     print("=" * 50)
@@ -499,6 +555,134 @@ async def generar_excel_recepcion(
         raise
     except Exception as e:
         app_logger.error(f"Error inesperado generando Excel para recepción {recepcion_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
+
+# ==================== RUTAS PARA ÓRDENES DE TRABAJO ====================
+
+@app.get("/api/ot/test")
+async def test_ot_endpoint():
+    """Endpoint de prueba para verificar que las rutas de OT funcionan"""
+    return {"message": "Endpoint de OT funcionando correctamente"}
+
+@app.post("/api/ot/debug")
+async def debug_ot_data(data: dict):
+    """Endpoint de debug para ver qué datos se están enviando"""
+    app_logger.info(f"Datos recibidos en debug: {data}")
+    return {"received_data": data, "data_type": type(data).__name__}
+
+@app.post("/api/ot/", response_model=OrdenTrabajoResponse)
+async def crear_orden_trabajo(
+    ot_data: OrdenTrabajoCreate,
+    db: Session = Depends(get_db)
+):
+    """Crear nueva orden de trabajo"""
+    try:
+        app_logger.info(f"Creando orden de trabajo: {ot_data.numero_ot}")
+        app_logger.info(f"Datos recibidos: {ot_data.model_dump()}")
+        result = ot_service.crear_orden_trabajo(db, ot_data)
+        app_logger.info(f"Orden de trabajo creada exitosamente: {result.id}")
+        return result
+        
+    except ValueError as e:
+        app_logger.error(f"Error de validación: {str(e)}")
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        app_logger.error(f"Error creando orden de trabajo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creando orden de trabajo: {str(e)}")
+
+@app.get("/api/ot/", response_model=List[OrdenTrabajoResponse])
+async def listar_ordenes_trabajo(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Listar órdenes de trabajo"""
+    return ot_service.listar_ordenes_trabajo(db, skip=skip, limit=limit)
+
+@app.get("/api/ot/{ot_id}", response_model=OrdenTrabajoResponse)
+async def obtener_orden_trabajo(
+    ot_id: int,
+    db: Session = Depends(get_db)
+):
+    """Obtener orden de trabajo por ID"""
+    ot = ot_service.obtener_orden_trabajo(db, ot_id)
+    if not ot:
+        raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada")
+    return ot
+
+@app.put("/api/ot/{ot_id}", response_model=OrdenTrabajoResponse)
+async def actualizar_orden_trabajo(
+    ot_id: int,
+    ot_data: OrdenTrabajoUpdate,
+    db: Session = Depends(get_db)
+):
+    """Actualizar orden de trabajo"""
+    try:
+        result = ot_service.actualizar_orden_trabajo(db, ot_id, ot_data)
+        if not result:
+            raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error actualizando orden de trabajo {ot_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error actualizando orden de trabajo: {str(e)}")
+
+@app.delete("/api/ot/{ot_id}")
+async def eliminar_orden_trabajo(
+    ot_id: int,
+    db: Session = Depends(get_db)
+):
+    """Eliminar orden de trabajo"""
+    try:
+        success = ot_service.eliminar_orden_trabajo(db, ot_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada")
+        return {"message": "Orden de trabajo eliminada exitosamente"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error eliminando orden de trabajo {ot_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error eliminando orden de trabajo: {str(e)}")
+
+@app.get("/api/ot/{ot_id}/excel")
+async def generar_excel_ot(
+    ot_id: int,
+    db: Session = Depends(get_db)
+):
+    """Generar Excel de orden de trabajo"""
+    try:
+        app_logger.info(f"Generando Excel para orden de trabajo {ot_id}")
+        
+        # Obtener datos de la OT
+        ot = ot_service.obtener_orden_trabajo(db, ot_id)
+        if not ot:
+            raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada")
+        
+        # Obtener items de la OT
+        items = ot_service.obtener_items_orden_trabajo(db, ot_id)
+        
+        # Preparar datos para Excel
+        ot_dict = _prepare_ot_data_for_excel(ot)
+        items_dict = _prepare_items_data_for_excel(items)
+        
+        # Generar Excel usando el servicio directo
+        excel_content = ot_excel_collaborative_service.modificar_excel_con_datos(ot_dict, items_dict)
+        
+        filename = f"OT-{ot.numero_ot}.xlsx"
+        
+        return Response(
+            content=excel_content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except Exception as e:
+        app_logger.error(f"Error generando Excel para orden de trabajo {ot_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
 
 if __name__ == "__main__":

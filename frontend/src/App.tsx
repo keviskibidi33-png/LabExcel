@@ -6,6 +6,9 @@ import OrdenDetail from './pages/OrdenDetail'
 import UploadExcel from './pages/UploadExcel'
 import ExportExcel from './pages/ExportExcel'
 import OrdenForm from './pages/OrdenForm'
+import OTList from './pages/OTList'
+import OTDetail from './pages/OTDetail'
+import OTForm from './pages/OTForm'
 
 function App() {
   return (
@@ -15,6 +18,9 @@ function App() {
         <Route path="/ordenes" element={<OrdenesList />} />
         <Route path="/ordenes/:id" element={<OrdenDetail />} />
         <Route path="/nueva-orden" element={<OrdenForm />} />
+        <Route path="/ot" element={<OTList />} />
+        <Route path="/ot/:id" element={<OTDetail />} />
+        <Route path="/ot/new" element={<OTForm />} />
         <Route path="/upload" element={<UploadExcel />} />
         <Route path="/export" element={<ExportExcel />} />
       </Routes>
