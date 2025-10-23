@@ -111,16 +111,65 @@ class OTExcelCollaborativeService:
                 print(f"Error escribiendo item en {cell_ref}: {e}")
                 pass
         
-        # Columnas: A=ÍTEM, B=CÓDIGO, F=DESCRIPCIÓN, I=CANTIDAD
+        def safe_merge_and_set_cell(start_cell, end_cell, value):
+            """Fusionar celdas y escribir valor"""
+            try:
+                if isinstance(value, str):
+                    value = value.strip()
+                if value is None or value == '':
+                    return
+                
+                # Fusionar celdas
+                worksheet.merge_cells(f'{start_cell}:{end_cell}')
+                
+                # Escribir valor en la celda superior izquierda
+                worksheet[start_cell].value = value
+                
+                # Aplicar alineación (centrada)
+                worksheet[start_cell].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                
+                # Ajustar altura de fila basada en el contenido (sistema adaptativo)
+                fila_numero = int(start_cell[1:])  # Extraer número de fila
+                altura_base = 15
+                
+                # Sistema simplificado: solo 2 casos
+                longitud_texto = len(value)
+                
+                # Contar párrafos (líneas separadas por punto y seguido)
+                parrafos = value.count('. ') + 1  # Aproximación de párrafos
+                
+                if parrafos <= 1 and longitud_texto <= 100:
+                    # 1 párrafo o menos: usar altura del template (no modificar)
+                    altura_final = None  # No modificar altura
+                else:
+                    # Más de 1 párrafo: altura mediana (reducida)
+                    altura_adicional = max(15, longitud_texto // 50) * 6  # Más suave
+                    altura_final = altura_base + altura_adicional
+                
+                # Solo modificar altura si es necesario
+                if altura_final is not None:
+                    worksheet.row_dimensions[fila_numero].height = altura_final
+                    print(f"Fusionado {start_cell}:{end_cell} con valor: '{value}' (altura: {altura_final})")
+                else:
+                    print(f"Fusionado {start_cell}:{end_cell} con valor: '{value}' (altura: template original)")
+                
+            except Exception as e:
+                print(f"Error fusionando celdas {start_cell}:{end_cell}: {e}")
+                pass
+        
+        # Columnas: A=ÍTEM, B=CÓDIGO, D-H=DESCRIPCIÓN (fusionada), I=CANTIDAD
         fila_inicio = 10
         
         for indice, item in enumerate(items):
             fila_actual = fila_inicio + indice
             
-            # ÍTEM y CANTIDAD centrados, CÓDIGO y DESCRIPCIÓN no centrados
+            # ÍTEM y CANTIDAD centrados, CÓDIGO centrado
             safe_set_cell(f'A{fila_actual}', item.get('item_numero') or indice + 1, center_align=True)
-            safe_set_cell(f'B{fila_actual}', item.get('codigo_muestra', ''), center_align=True)  # Cambiado a B
-            safe_set_cell(f'F{fila_actual}', item.get('descripcion', ''))  # Cambiado a F
+            safe_set_cell(f'B{fila_actual}', item.get('codigo_muestra', ''), center_align=True)
+            
+            # DESCRIPCIÓN en celdas fusionadas D:H (5 columnas) para más espacio
+            safe_merge_and_set_cell(f'D{fila_actual}', f'H{fila_actual}', item.get('descripcion', ''))
+            
             safe_set_cell(f'I{fila_actual}', item.get('cantidad', ''), center_align=True)
     
     def _ajustar_ancho_columnas(self, worksheet):
