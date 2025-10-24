@@ -732,20 +732,32 @@ class ExcelCollaborativeService:
         try:
             print(f"Intentando mover elementos del footer desde fila {footer_row}")
             
-            # Solo buscar en un rango limitado para evitar bucles infinitos
-            for row in range(60, min(worksheet.max_row + 1, 80)):
-                for col in range(1, min(worksheet.max_column + 1, 12)):
+            # Calcular nuevas posiciones
+            nueva_fila_obligatorio = footer_row - 5
+            nueva_fila_nota = footer_row - 4
+            
+            # Buscar elementos en todo el worksheet
+            for row in range(1, worksheet.max_row + 1):
+                for col in range(1, worksheet.max_column + 1):
                     celda = worksheet.cell(row=row, column=col)
                     if isinstance(celda.value, str):
-                        if "(1) OBLIGATORIO" in celda.value or "Nota:" in celda.value:
-                            # Mover a la nueva posición (5 filas antes del footer)
-                            nueva_fila = footer_row - 5
+                        # Buscar y mover "(1) OBLIGATORIO"
+                        if "(1) OBLIGATORIO" in celda.value:
                             valor_original = celda.value
                             celda.value = ""
                             
-                            nueva_celda = worksheet.cell(row=nueva_fila, column=col)
+                            nueva_celda = worksheet.cell(row=nueva_fila_obligatorio, column=col)
                             nueva_celda.value = valor_original
-                            print(f"Movido elemento del footer a fila {nueva_fila}")
+                            print(f"Movido '(1) OBLIGATORIO' a fila {nueva_fila_obligatorio}")
+                            
+                        # Buscar y mover "Nota:"
+                        elif "Nota:" in celda.value:
+                            valor_original = celda.value
+                            celda.value = ""
+                            
+                            nueva_celda = worksheet.cell(row=nueva_fila_nota, column=col)
+                            nueva_celda.value = valor_original
+                            print(f"Movido 'Nota:' a fila {nueva_fila_nota}")
                             
         except Exception as e:
             print(f"Error en _mover_elementos_footer: {e}")
