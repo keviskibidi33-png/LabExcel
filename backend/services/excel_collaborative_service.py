@@ -95,11 +95,11 @@ class ExcelCollaborativeService:
                 # Centrar las X en los cuadros de checkboxes
                 if cell_ref in ['B46', 'B47'] and value == 'X':
                     target_cell.alignment = Alignment(horizontal='center', vertical='center')
-                # Centrar específicamente ciertas celdas
+                # Aplicar wrap_text para campos de texto largo
                 elif cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
-                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
+                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
                 else:
-                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
+                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom', wrap_text=True)
                 # Mantener altura original del template
                 
             except Exception:
@@ -279,22 +279,41 @@ class ExcelCollaborativeService:
                 if coord not in rangos_existentes:
                     worksheet.merge_cells(coord)
                     rangos_existentes.add(coord)
+        
+        # Asegurar bordes después de clonar fusiones
+        from openpyxl.styles import Border, Side
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Aplicar bordes a todas las celdas de la fila destino
+        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+            try:
+                worksheet[f'{col}{fila_destino}'].border = thin_border
+            except Exception:
+                pass
 
     def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
+        """Limpiar filas restantes manteniendo el formato correcto"""
         for fila in range(fila_inicio_libre, fila_footer):
-            for columna in columnas:
-                referencia = f'{columna}{fila}'
-                try:
-                    celda = worksheet[referencia]
-                    destino = celda
-                    for rango in worksheet.merged_cells.ranges:
-                        if referencia in rango:
-                            destino = worksheet.cell(row=rango.min_row, column=rango.min_col)
-                            break
-                    destino.value = ""
-                except Exception:
-                    continue
-            self._merge_item_row(worksheet, fila)
+            # Solo limpiar si no es una fila crítica del footer
+            if fila < fila_footer - 5:  # No limpiar las últimas 5 filas del footer
+                for columna in columnas:
+                    referencia = f'{columna}{fila}'
+                    try:
+                        celda = worksheet[referencia]
+                        destino = celda
+                        for rango in worksheet.merged_cells.ranges:
+                            if referencia in rango:
+                                destino = worksheet.cell(row=rango.min_row, column=rango.min_col)
+                                break
+                        destino.value = ""
+                    except Exception:
+                        continue
+                self._merge_item_row(worksheet, fila)
 
     def _find_footer_row(self, worksheet) -> Optional[int]:
         for fila in range(1, worksheet.max_row + 1):
@@ -320,9 +339,25 @@ class ExcelCollaborativeService:
             if rango.coord == coord:
                 return
         worksheet.merge_cells(coord)
+        
+        # Asegurar que los bordes se mantengan después de la fusión
+        from openpyxl.styles import Border, Side
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Aplicar bordes a todas las celdas de la fila
+        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+            try:
+                worksheet[f'{col}{fila}'].border = thin_border
+            except Exception:
+                pass
 
     def _eliminar_segunda_linea_web(self, worksheet) -> None:
-        """Elimina el texto duplicado con la información de Web en el footer."""
+        """Elimina el texto duplicado con la información de Web en el footer, pero mantiene la información de contacto."""
 
         ocurrencias = 0
         for row in range(1, worksheet.max_row + 1):
@@ -330,6 +365,7 @@ class ExcelCollaborativeService:
             if isinstance(valor, str) and "Web: www.geofal.com.pe" in valor:
                 ocurrencias += 1
                 if ocurrencias >= 2:
+                    # Solo eliminar si es realmente duplicado, no la información de contacto principal
                     celda = worksheet.cell(row=row, column=1)
                     coordenada = celda.coordinate
                     celda_destino = celda
@@ -337,7 +373,9 @@ class ExcelCollaborativeService:
                         if coordenada in merged_range:
                             celda_destino = worksheet.cell(row=merged_range.min_row, column=merged_range.min_col)
                             break
-                    celda_destino.value = ""
+                    # Verificar si es realmente un duplicado antes de eliminar
+                    if "Web: www.geofal.com.pe" in str(celda_destino.value) and ocurrencias > 1:
+                        celda_destino.value = ""
                     break
 
 
