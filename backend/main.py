@@ -15,7 +15,7 @@ from config import settings
 from utils.logger import app_logger, api_logger, db_logger
 from utils.exceptions import (
     ValidationError, DatabaseError, ExcelProcessingError, 
-    PDFGenerationError, RecepcionNotFoundError, DuplicateRecepcionError
+    RecepcionNotFoundError, DuplicateRecepcionError
 )
 from utils.validators import DataValidator
 
@@ -31,8 +31,6 @@ from schemas import (
 from services.excel_service import ExcelService
 from services.orden_service import RecepcionService
 from services.ot_service import OTService
-from services.pdf_service import PDFService
-from services.simple_pdf_service import SimplePDFService
 from services.excel_collaborative_service import ExcelCollaborativeService
 from services.ot_excel_collaborative_service import OTExcelCollaborativeService
 
@@ -69,8 +67,6 @@ async def log_requests(request, call_next):
 excel_service = ExcelService()
 recepcion_service = RecepcionService()
 ot_service = OTService()
-pdf_service = PDFService()
-simple_pdf_service = SimplePDFService()
 excel_collaborative_service = ExcelCollaborativeService()
 ot_excel_collaborative_service = OTExcelCollaborativeService()
 
@@ -424,76 +420,6 @@ async def exportar_ordenes(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exportando órdenes: {str(e)}")
 
-@app.get("/api/ordenes/{recepcion_id}/pdf")
-async def generar_pdf_recepcion(
-    recepcion_id: int,
-    db: Session = Depends(get_db)
-):
-    """Generar PDF del formulario de recepción de muestras"""
-    try:
-        # Obtener la recepción
-        recepcion = recepcion_service.obtener_recepcion(db, recepcion_id)
-        if not recepcion:
-            raise HTTPException(status_code=404, detail="Recepción no encontrada")
-        
-        # Convertir a diccionario para el PDF
-        recepcion_dict = {
-            'numero_ot': recepcion.numero_ot,
-            'numero_recepcion': recepcion.numero_recepcion,
-            'numero_cotizacion': recepcion.numero_cotizacion,
-            'codigo_trazabilidad': recepcion.codigo_trazabilidad,
-            'asunto': recepcion.asunto,
-            'cliente': recepcion.cliente,
-            'domicilio_legal': recepcion.domicilio_legal,
-            'ruc': recepcion.ruc,
-            'persona_contacto': recepcion.persona_contacto,
-            'email': recepcion.email,
-            'telefono': recepcion.telefono,
-            'solicitante': recepcion.solicitante,
-            'domicilio_solicitante': recepcion.domicilio_solicitante,
-            'proyecto': recepcion.proyecto,
-            'ubicacion': recepcion.ubicacion,
-            'fecha_recepcion': recepcion.fecha_recepcion.strftime('%d/%m/%Y') if recepcion.fecha_recepcion else '',
-            'fecha_estimada_culminacion': recepcion.fecha_estimada_culminacion.strftime('%d/%m/%Y') if recepcion.fecha_estimada_culminacion else '',
-            'emision_fisica': recepcion.emision_fisica,
-            'emision_digital': recepcion.emision_digital,
-            'entregado_por': recepcion.entregado_por,
-            'recibido_por': recepcion.recibido_por,
-            'codigo_laboratorio': recepcion.codigo_laboratorio,
-            'version': recepcion.version
-        }
-        
-        # Convertir muestras a diccionarios
-        muestras_dict = []
-        for muestra in recepcion.muestras:
-            muestras_dict.append({
-                'item_numero': muestra.item_numero,
-                'codigo_muestra': muestra.codigo_muestra,
-                'identificacion_muestra': muestra.identificacion_muestra,
-                'estructura': muestra.estructura,
-                'fc_kg_cm2': muestra.fc_kg_cm2,
-                'fecha_moldeo': muestra.fecha_moldeo,
-                'hora_moldeo': muestra.hora_moldeo,
-                'edad': muestra.edad,
-                'fecha_rotura': muestra.fecha_rotura,
-                'requiere_densidad': muestra.requiere_densidad
-            })
-        
-        # Generar PDF usando servicio simple (compatible con Windows)
-        pdf_content = simple_pdf_service.generar_pdf_recepcion(recepcion_dict, muestras_dict)
-        
-        # Crear respuesta con el PDF
-        from fastapi.responses import Response
-        return Response(
-            content=pdf_content,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=recepcion_{recepcion.numero_recepcion}.pdf"
-            }
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generando PDF: {str(e)}")
 
 @app.get("/api/ordenes/{recepcion_id}/excel")
 async def generar_excel_recepcion(

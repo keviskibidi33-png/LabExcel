@@ -235,13 +235,7 @@ export const apiService = {
     )
   },
 
-  // Nuevas funciones para PDF y Excel
-  downloadPDF: async (recepcionId: number): Promise<Blob> => {
-    const response = await api.get(`/api/ordenes/${recepcionId}/pdf`, {
-      responseType: 'blob'
-    })
-    return response.data
-  },
+  // Función para Excel
 
   downloadExcel: async (recepcionId: number): Promise<Blob> => {
     const response = await api.get(`/api/ordenes/${recepcionId}/excel`, {
@@ -284,6 +278,5 @@ export const {
   uploadExcel,
   downloadTemplate,
   exportOrdenes,
-  downloadPDF,
   downloadExcel
 } = apiService
