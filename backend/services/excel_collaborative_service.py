@@ -212,6 +212,8 @@ class ExcelCollaborativeService:
         # Desfusionar y re-fusionar para tener control total solo si hay muchos items
         if total_items > 17:
             self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
+            # Fusionar celdas del footer para evitar texto cortado
+            self._fusionar_celdas_footer(worksheet)
 
         for indice, muestra in enumerate(muestras):
             fila_actual = fila_inicio + indice
@@ -493,6 +495,21 @@ class ExcelCollaborativeService:
                 # Encontrar la celda D de esa fila
                 celda_d = worksheet.cell(row=row, column=4)  # Columna D
                 celda_d.value = "Web: www.geofal.com.pe / Correo: laboratorio@geofal.com.pe / Av. Marañon N°763 Los Olivos, Lima / Teléfono: 01-7543070"
+                break
+
+    def _fusionar_celdas_footer(self, worksheet) -> None:
+        """Fusionar celdas del footer para evitar texto cortado con muchos items"""
+        # Buscar la fila 70 (o la fila del footer)
+        for row in range(65, worksheet.max_row + 1):
+            valor = worksheet.cell(row=row, column=1).value
+            if isinstance(valor, str) and "Web:" in valor:
+                # Fusionar A:B y F:G en la fila del footer
+                try:
+                    worksheet.merge_cells(f'A{row}:B{row}')
+                    worksheet.merge_cells(f'F{row}:G{row}')
+                    print(f"Fusionadas celdas del footer en fila {row}")
+                except Exception as e:
+                    print(f"Error fusionando footer: {e}")
                 break
 
 
