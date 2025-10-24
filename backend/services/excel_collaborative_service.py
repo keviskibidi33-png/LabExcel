@@ -31,6 +31,9 @@ class ExcelCollaborativeService:
         workbook = openpyxl.load_workbook(template_file)
         worksheet = workbook.active
         
+        # Guardar número de items para uso en safe_set_cell
+        self._total_items = len(muestras)
+        
         # Cambiar "X" por "Descripción" - manejar celdas fusionadas
         try:
             # Buscar la celda que contiene "X" en la fila 22
@@ -95,11 +98,22 @@ class ExcelCollaborativeService:
                 # Centrar las X en los cuadros de checkboxes
                 if cell_ref in ['B46', 'B47'] and value == 'X':
                     target_cell.alignment = Alignment(horizontal='center', vertical='center')
-                # Aplicar wrap_text para campos de texto largo
+                # Aplicar wrap_text solo para campos específicos y solo cuando hay muchos items
                 elif cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
-                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
+                    # Solo aplicar wrap_text si hay muchos items (más de 17)
+                    if hasattr(self, '_total_items') and self._total_items > 17:
+                        target_cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                        # Asegurar que la fila tenga altura suficiente para el wrap text
+                        worksheet.row_dimensions[target_cell.row].height = max(worksheet.row_dimensions[target_cell.row].height, 30)
+                    else:
+                        # Mantener alineación original del template
+                        target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
                 else:
-                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom', wrap_text=True)
+                    # Solo aplicar wrap_text si hay muchos items
+                    if hasattr(self, '_total_items') and self._total_items > 17:
+                        target_cell.alignment = Alignment(horizontal='left', vertical='bottom', wrap_text=True)
+                    else:
+                        target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
                 # Mantener altura original del template
                 
             except Exception:
@@ -144,9 +158,12 @@ class ExcelCollaborativeService:
         
         # No agregar X en D22 - esa columna es para códigos de muestras
         
-        # Entregado/Recibido
+        # Entregado/Recibido - Nuevas celdas sin fusionar
         safe_set_cell('D49', recepcion_data.get('entregado_por', ''))
         safe_set_cell('H49', recepcion_data.get('recibido_por', ''))
+        
+        # Información de contacto en columna D
+        self._agregar_informacion_contacto(worksheet)
         
         print("Datos de recepción rellenados")
     
@@ -191,12 +208,29 @@ class ExcelCollaborativeService:
 
         footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
         self._unmerge_item_area(worksheet, footer_row)
+        
+        # Desfusionar y re-fusionar para tener control total solo si hay muchos items
+        if total_items > 17:
+            self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
 
         for indice, muestra in enumerate(muestras):
             fila_actual = fila_inicio + indice
             worksheet.row_dimensions[fila_actual].height = altura_item
 
-            safe_set_cell(f'A{fila_actual}', muestra.get('item_numero') or indice + 1)
+            # Forzar número de item correcto
+            item_numero = indice + 1
+            print(f"Fila {fila_actual}: item_numero forzado={item_numero}")
+            
+            # Debug específico para celda A
+            try:
+                celda_a = worksheet[f'A{fila_actual}']
+                print(f"  Celda A{fila_actual} antes: {celda_a.value}")
+                celda_a.value = item_numero
+                print(f"  Celda A{fila_actual} después: {celda_a.value}")
+            except Exception as e:
+                print(f"  Error en celda A{fila_actual}: {e}")
+            
+            safe_set_cell(f'A{fila_actual}', item_numero)
             codigo_ref = f'B{fila_actual}'
             safe_set_cell(codigo_ref, muestra.get('codigo_muestra_lem', ''))
             try:
@@ -214,7 +248,48 @@ class ExcelCollaborativeService:
             self._merge_item_row(worksheet, fila_actual)
 
         self._limpiar_filas_restantes(worksheet, fila_inicio + total_items, footer_row, columnas_tabla)
-        self._eliminar_segunda_linea_web(worksheet)
+        # Solo eliminar segunda línea web si hay muchos items
+        if total_items > 17:
+            self._eliminar_segunda_linea_web(worksheet)
+        
+        # Centrar datos de filas específicas (20, 21, 29) cuando tengan items
+        self._centrar_filas_especificas(worksheet, fila_inicio, total_items)
+    
+    def _centrar_filas_especificas(self, worksheet, fila_inicio: int, total_items: int) -> None:
+        """Centrar datos de filas específicas (items 20, 21, 24, 25, 26, 27, 29, 40) cuando tengan items"""
+        from openpyxl.styles import Alignment
+        
+        # Items específicos a centrar (20, 21, 24, 25, 26, 27, 29, 40)
+        items_a_centrar = [20, 21, 24, 25, 26, 27, 29, 40]
+        
+        for item_num in items_a_centrar:
+            # Convertir número de item a fila del Excel
+            # Los items empiezan en fila_inicio, entonces item 20 = fila_inicio + 19
+            fila_excel = fila_inicio + (item_num - 1)
+            
+            # Verificar si la fila está dentro del rango de items
+            if fila_inicio <= fila_excel < fila_inicio + total_items:
+                print(f"Centrando fila {fila_excel} (item {item_num})")
+                
+                # Aplicar alineación centrada a todas las columnas de datos
+                for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+                    try:
+                        celda = worksheet[f'{col}{fila_excel}']
+                        
+                        # Verificar si la celda está en un rango fusionado
+                        celda_destino = celda
+                        for merged_range in worksheet.merged_cells.ranges:
+                            if f'{col}{fila_excel}' in merged_range:
+                                celda_destino = worksheet.cell(row=merged_range.min_row, column=merged_range.min_col)
+                                break
+                        
+                        # Aplicar alineación centrada
+                        celda_destino.alignment = Alignment(horizontal='center', vertical='center')
+                        print(f"  Centrada celda {col}{fila_excel}")
+                        
+                    except Exception as e:
+                        print(f"  Error centrando {col}{fila_excel}: {e}")
+                        pass
     
     def _ajustar_ancho_columnas(self, worksheet):
         """Ajustar el ancho de las columnas"""
@@ -299,8 +374,8 @@ class ExcelCollaborativeService:
     def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
         """Limpiar filas restantes manteniendo el formato correcto"""
         for fila in range(fila_inicio_libre, fila_footer):
-            # Solo limpiar si no es una fila crítica del footer
-            if fila < fila_footer - 5:  # No limpiar las últimas 5 filas del footer
+            # No limpiar filas críticas del footer (últimas 10 filas)
+            if fila < fila_footer - 10:  # Proteger más filas del footer
                 for columna in columnas:
                     referencia = f'{columna}{fila}'
                     try:
@@ -313,7 +388,9 @@ class ExcelCollaborativeService:
                         destino.value = ""
                     except Exception:
                         continue
-                self._merge_item_row(worksheet, fila)
+                # Solo aplicar merge si no es una fila crítica
+                if fila < fila_footer - 15:  # Proteger aún más filas
+                    self._merge_item_row(worksheet, fila)
 
     def _find_footer_row(self, worksheet) -> Optional[int]:
         for fila in range(1, worksheet.max_row + 1):
@@ -331,6 +408,35 @@ class ExcelCollaborativeService:
                 to_unmerge.append(rango.coord)
         for coord in to_unmerge:
             worksheet.unmerge_cells(coord)
+
+    def _refusionar_items_con_control(self, worksheet, fila_inicio: int, total_items: int) -> None:
+        """Re-fusionar items con control total sobre bordes y alineación"""
+        from openpyxl.styles import Border, Side, Alignment
+        
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        for indice in range(total_items):
+            fila_actual = fila_inicio + indice
+            
+            # Re-fusionar B:C con control total
+            try:
+                worksheet.merge_cells(f'B{fila_actual}:C{fila_actual}')
+            except Exception:
+                pass
+            
+            # Aplicar bordes y alineación a todas las celdas
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+                try:
+                    celda = worksheet[f'{col}{fila_actual}']
+                    celda.border = thin_border
+                    celda.alignment = Alignment(horizontal='center', vertical='center')
+                except Exception:
+                    pass
 
     @staticmethod
     def _merge_item_row(worksheet, fila: int) -> None:
@@ -364,8 +470,8 @@ class ExcelCollaborativeService:
             valor = worksheet.cell(row=row, column=1).value
             if isinstance(valor, str) and "Web: www.geofal.com.pe" in valor:
                 ocurrencias += 1
-                if ocurrencias >= 2:
-                    # Solo eliminar si es realmente duplicado, no la información de contacto principal
+                # Solo eliminar si es realmente duplicado (más de 2 ocurrencias)
+                if ocurrencias > 2:
                     celda = worksheet.cell(row=row, column=1)
                     coordenada = celda.coordinate
                     celda_destino = celda
@@ -373,10 +479,21 @@ class ExcelCollaborativeService:
                         if coordenada in merged_range:
                             celda_destino = worksheet.cell(row=merged_range.min_row, column=merged_range.min_col)
                             break
-                    # Verificar si es realmente un duplicado antes de eliminar
-                    if "Web: www.geofal.com.pe" in str(celda_destino.value) and ocurrencias > 1:
+                    # Solo eliminar duplicados reales, mantener información de contacto principal
+                    if "Web: www.geofal.com.pe" in str(celda_destino.value):
                         celda_destino.value = ""
                     break
+
+    def _agregar_informacion_contacto(self, worksheet) -> None:
+        """Agregar información de contacto en columna D"""
+        # Buscar la fila donde está la información de contacto
+        for row in range(50, worksheet.max_row + 1):
+            valor = worksheet.cell(row=row, column=1).value
+            if isinstance(valor, str) and "Web:" in valor:
+                # Encontrar la celda D de esa fila
+                celda_d = worksheet.cell(row=row, column=4)  # Columna D
+                celda_d.value = "Web: www.geofal.com.pe / Correo: laboratorio@geofal.com.pe / Av. Marañon N°763 Los Olivos, Lima / Teléfono: 01-7543070"
+                break
 
 
 
