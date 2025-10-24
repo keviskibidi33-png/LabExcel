@@ -251,7 +251,7 @@ async def debug_crear_recepcion(request: dict):
         
         # Verificar campos requeridos
         required_fields = [
-            'numero_ot', 'numero_recepcion', 'asunto', 'cliente', 
+            'numero_ot', 'numero_recepcion', 'cliente', 
             'domicilio_legal', 'ruc', 'persona_contacto', 'email', 
             'telefono', 'solicitante', 'domicilio_solicitante', 
             'proyecto', 'ubicacion'

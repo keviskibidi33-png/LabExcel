@@ -28,12 +28,7 @@ class MuestraConcretoBase(BaseModel):
             raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
         return v
 
-    @validator('hora_moldeo')
-    def validate_time_format(cls, v):
-        """Validar formato de hora HH:MM"""
-        if v and v.strip() and not re.match(r'^\d{2}:\d{2}$', v):
-            raise ValueError('La hora debe estar en formato HH:MM')
-        return v
+    # Validación de hora_moldeo eliminada para permitir cualquier texto
 
 class MuestraConcretoCreate(MuestraConcretoBase):
     """Esquema para crear una muestra de concreto"""

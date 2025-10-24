@@ -207,16 +207,8 @@ export class FormValidator {
         }
       }
       
-      // Validar hora de moldeo
-      if (muestra.hora_moldeo) {
-        const timeError = this.validateTime(muestra.hora_moldeo);
-        if (timeError) {
-          errors.push({
-            field: `${prefix}.hora_moldeo`,
-            message: timeError.message
-          });
-        }
-      }
+      // Validar hora de moldeo (ahora acepta cualquier texto)
+      // No se valida formato específico, permite cualquier carácter
     });
     
     return errors;
@@ -302,19 +294,12 @@ export class Formatter {
   }
   
   /**
-   * Generar números únicos
+   * Obtener números fijos predefinidos
    */
-  static generateUniqueNumbers() {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
+  static getFixedNumbers() {
     return {
-      numero_ot: `OT-${year}${month}${day}-${timestamp}-${random}`,
-      numero_recepcion: `REC-${year}${month}${day}-${timestamp}-${random}`
+      numero_ot: "1422",
+      numero_recepcion: "1384"
     };
   }
 }

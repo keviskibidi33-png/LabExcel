@@ -93,10 +93,7 @@ class DataValidator:
             if fecha_moldeo and fecha_moldeo.strip() and not cls.validate_date_value(fecha_moldeo):
                 errors.append(f"Muestra {i+1}: Fecha de moldeo inválida")
             
-            # Validar hora de moldeo
-            hora_moldeo = muestra.get('hora_moldeo')
-            if hora_moldeo and hora_moldeo.strip() and not cls.validate_time_value(hora_moldeo):
-                errors.append(f"Muestra {i+1}: Hora de moldeo inválida")
+            # Validación de hora de moldeo eliminada para permitir cualquier texto
         
         return errors
     

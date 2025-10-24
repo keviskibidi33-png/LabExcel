@@ -61,24 +61,17 @@ const OrdenForm: React.FC = () => {
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
-  // Generar números únicos basados en timestamp y random
-  const generateUniqueNumbers = () => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
+  // Números fijos predefinidos
+  const getFixedNumbers = () => {
     return {
-      numero_ot: `OT-${year}${month}${day}-${timestamp}-${random}`,
-      numero_recepcion: `REC-${year}${month}${day}-${timestamp}-${random}`
+      numero_ot: "1422",
+      numero_recepcion: "1384"
     };
   };
 
   const { register, control, handleSubmit, formState: { errors }, reset, getValues, setValue } = useForm<OrdenFormData>({
     defaultValues: {
-      ...generateUniqueNumbers(),
+      ...getFixedNumbers(),
       muestras: [{ 
         item_numero: 1, 
         codigo_muestra: '',
@@ -145,15 +138,8 @@ const OrdenForm: React.FC = () => {
         return;
       }
       
-      // Generar números únicos para este envío
-      const uniqueNumbers = generateUniqueNumbers();
-      const dataWithUniqueNumbers = {
-        ...data,
-        numero_ot: uniqueNumbers.numero_ot,
-        numero_recepcion: uniqueNumbers.numero_recepcion
-      };
-      
-      const result = await createOrdenMutation.mutateAsync(dataWithUniqueNumbers);
+      // Usar los valores que el usuario escribió manualmente
+      const result = await createOrdenMutation.mutateAsync(data);
       setCreatedRecepcionId(((result as unknown) as any)?.id ?? null);
       // Mantener datos ingresados; mostrar aviso para permitir validación antes de limpiar
       toast.success('Puedes revisar los datos en el formulario. Si deseas, descarga PDF/Excel.');
@@ -196,7 +182,15 @@ const OrdenForm: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `recepcion_${createdRecepcionId}.xlsx`;
+      
+      // Obtener los valores del formulario para el nombre del archivo
+      const formData = getValues();
+      const numeroRecepcion = formData.numero_recepcion || '1384';
+      const solicitante = formData.solicitante || 'Sin especificar';
+      
+      // Formato: REC Nº [número_recepción] [nombre_solicitante]
+      link.download = `REC Nº ${numeroRecepcion} ${solicitante}.xlsx`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -434,9 +428,10 @@ const OrdenForm: React.FC = () => {
               </div>
               <div className="col-span-1">
                 <input
-                  type="time"
+                  type="text"
                   {...register(`muestras.${index}.hora_moldeo` as const)}
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Ej: 1, -, 10:18, etc."
                 />
               </div>
               <div className="col-span-1">

@@ -24,8 +24,21 @@ class RecepcionService:
             if not recepcion_data.muestras:
                 raise ValueError("Debe incluir al menos una muestra de concreto")
             
-            # Crear recepción
-            recepcion = RecepcionMuestra(**recepcion_data.dict(exclude={'muestras'}))
+            # Crear recepción - manejar campos vacíos
+            recepcion_dict = recepcion_data.dict(exclude={'muestras'})
+            
+            # Convertir strings vacíos a None para campos opcionales
+            for field in ['numero_cotizacion', 'entregado_por', 'recibido_por']:
+                if field in recepcion_dict and recepcion_dict[field] == "":
+                    recepcion_dict[field] = None
+            
+            # Asegurar que campos requeridos no estén vacíos
+            for field in ['cliente', 'domicilio_legal', 'ruc', 'persona_contacto', 'email', 'telefono', 
+                         'solicitante', 'domicilio_solicitante', 'proyecto', 'ubicacion']:
+                if field in recepcion_dict and recepcion_dict[field] == "":
+                    recepcion_dict[field] = "Sin especificar"
+            
+            recepcion = RecepcionMuestra(**recepcion_dict)
             db.add(recepcion)
             db.flush()  # Para obtener el ID
             

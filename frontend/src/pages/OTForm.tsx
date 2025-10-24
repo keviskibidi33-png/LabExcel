@@ -37,24 +37,17 @@ const OTForm: React.FC = () => {
   const [createdOTId, setCreatedOTId] = useState<number | null>(null);
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
-  // Generar números únicos basados en timestamp y random
-  const generateUniqueNumbers = () => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
+  // Números fijos predefinidos
+  const getFixedNumbers = () => {
     return {
-      numero_ot: `OT-${year}${month}${day}-${timestamp}-${random}`,
-      numero_recepcion: `REC-${year}${month}${day}-${timestamp}-${random}`
+      numero_ot: "1422",
+      numero_recepcion: "1384"
     };
   };
 
   const { register, control, handleSubmit, formState: { errors }, reset, getValues, setValue } = useForm<OTFormData>({
     defaultValues: {
-      ...generateUniqueNumbers(),
+      ...getFixedNumbers(),
       items: [{ 
         item_numero: 1, 
         codigo_muestra: '',
@@ -186,15 +179,8 @@ const OTForm: React.FC = () => {
         return;
       }
       
-      // Generar números únicos para este envío
-      const uniqueNumbers = generateUniqueNumbers();
-      const dataWithUniqueNumbers = {
-        ...data,
-        numero_ot: uniqueNumbers.numero_ot,
-        numero_recepcion: uniqueNumbers.numero_recepcion
-      };
-      
-      const result = await createOTMutation.mutateAsync(dataWithUniqueNumbers);
+      // Usar los valores que el usuario escribió manualmente
+      const result = await createOTMutation.mutateAsync(data);
       setCreatedOTId(((result as unknown) as any)?.id ?? null);
       toast.success('Orden de trabajo creada exitosamente');
     } catch (error) {
