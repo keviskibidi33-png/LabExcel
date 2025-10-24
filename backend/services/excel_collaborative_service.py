@@ -273,6 +273,9 @@ class ExcelCollaborativeService:
         
         # SIEMPRE centrar el último número de item
         self._centrar_ultimo_item(worksheet, fila_inicio, total_items)
+        
+        # SIEMPRE centrar toda la fila de items
+        self._centrar_toda_fila_items(worksheet, fila_inicio, total_items)
     
     def _centrar_filas_especificas(self, worksheet, fila_inicio: int, total_items: int) -> None:
         """Centrar datos de filas específicas (items 20, 21, 24, 25, 26, 27, 29, 40) cuando tengan items"""
@@ -552,17 +555,14 @@ class ExcelCollaborativeService:
                     worksheet.merge_cells(f'F{footer_row}:G{footer_row}')
                     print(f"Fusionada F:G en fila {footer_row}")
                 
-                # Solo aplicar altura y wrap_text si hay muchos items (40+)
-                if hasattr(self, '_total_items') and self._total_items >= 40:
-                    worksheet.row_dimensions[footer_row].height = 30  # Altura para dos líneas de texto
-                    
-                    # Aplicar wrap_text y alineación a las celdas relevantes
-                    from openpyxl.styles import Alignment
-                    worksheet.cell(row=footer_row, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-                    worksheet.cell(row=footer_row, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-                    print(f"Aplicando altura y wrap_text para {self._total_items} items")
-                else:
-                    print(f"Manteniendo altura original del template para {getattr(self, '_total_items', 'desconocido')} items")
+                # SIEMPRE aplicar altura y wrap_text para mantener consistencia
+                worksheet.row_dimensions[footer_row].height = 30  # Altura fija para dos líneas de texto
+                
+                # Aplicar wrap_text y alineación a las celdas relevantes SIEMPRE
+                from openpyxl.styles import Alignment
+                worksheet.cell(row=footer_row, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                worksheet.cell(row=footer_row, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                print(f"Aplicando altura fija y wrap_text SIEMPRE para fila {footer_row}")
                     
             except Exception as e:
                 print(f"Error fusionando footer en fila {footer_row}: {e}")
@@ -575,11 +575,12 @@ class ExcelCollaborativeService:
                 worksheet.merge_cells('F70:G70')
                 print("Fusionadas celdas en fila 70")
                 
-                # También establecer altura y wrap_text para la fila 70 directa
+                # SIEMPRE establecer altura y wrap_text para la fila 70 directa
                 worksheet.row_dimensions[70].height = 30
                 from openpyxl.styles import Alignment
                 worksheet.cell(row=70, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
                 worksheet.cell(row=70, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                print("Aplicando altura fija SIEMPRE para fila 70")
             except Exception as e:
                 print(f"Error fusionando fila 70: {e}")
 
@@ -642,6 +643,23 @@ class ExcelCollaborativeService:
                 print(f"Centrado último item en fila {ultima_fila} (item {total_items})")
             except Exception as e:
                 print(f"Error centrando último item: {e}")
+    
+    def _centrar_toda_fila_items(self, worksheet, fila_inicio: int, total_items: int) -> None:
+        """Centrar TODA la fila de items, no solo números específicos"""
+        from openpyxl.styles import Alignment
+        
+        for indice in range(total_items):
+            fila_actual = fila_inicio + indice
+            
+            # Centrar todas las columnas de la fila de items
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+                try:
+                    celda = worksheet[f'{col}{fila_actual}']
+                    celda.alignment = Alignment(horizontal='center', vertical='center')
+                except Exception:
+                    pass
+        
+        print(f"Centradas todas las filas de items ({total_items} filas)")
 
 
 
