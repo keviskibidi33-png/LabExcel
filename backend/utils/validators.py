@@ -13,7 +13,7 @@ class DataValidator:
     # Patrones de validación
     RUC_PATTERN = re.compile(r'^\d{8,20}$')  # RUC puede tener entre 8 y 20 dígitos
     EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-    PHONE_PATTERN = re.compile(r'^[\+]?[1-9][\d]{0,15}$')
+    PHONE_PATTERN = re.compile(r'^[\+]?[0-9][\d\s\-\(\)]{0,20}$')
     DATE_PATTERN = re.compile(r'^\d{2}/\d{2}/\d{4}$')
     TIME_PATTERN = re.compile(r'^\d{2}:\d{2}$')
     
@@ -33,10 +33,11 @@ class DataValidator:
     
     @classmethod
     def validate_phone(cls, phone: str) -> bool:
-        """Validar formato de teléfono"""
+        """Validar formato de teléfono - muy flexible"""
         if not phone:
             return True  # Teléfono es opcional
-        return bool(cls.PHONE_PATTERN.match(phone))
+        # Permitir cualquier formato de teléfono (muy flexible)
+        return True
     
     @classmethod
     def validate_date_format(cls, date_str: str) -> bool:
