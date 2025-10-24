@@ -223,9 +223,9 @@ class ExcelCollaborativeService:
             self._mover_elementos_footer(worksheet, footer_row)
             print(f"Aplicando optimizaciones completas para {total_items} items")
         elif total_items > 17:
-            # Para 18-39 items: mover elementos del footer
-            self._mover_elementos_footer(worksheet, footer_row)
-            print(f"Moviendo elementos del footer para {total_items} items")
+            # Para 18-39 items: mover elementos del footer (TEMPORALMENTE DESHABILITADO)
+            # self._mover_elementos_footer(worksheet, footer_row)
+            print(f"Saltando movimiento de footer para {total_items} items (debug)")
         else:
             # Para 17 o menos items: mantener template original completamente
             print(f"Manteniendo template original para {total_items} items - SIN MODIFICACIONES")
@@ -730,40 +730,23 @@ class ExcelCollaborativeService:
     def _mover_elementos_footer(self, worksheet, footer_row: int) -> None:
         """Mover elementos del footer dinámicamente cuando aumentan los items"""
         try:
-            # Calcular la nueva posición del footer (siempre 5 filas antes del footer principal)
-            nueva_fila_obligatorio = footer_row - 5
-            nueva_fila_nota = footer_row - 4
+            print(f"Intentando mover elementos del footer desde fila {footer_row}")
             
-            print(f"Moviendo elementos del footer a filas {nueva_fila_obligatorio} y {nueva_fila_nota}")
-            
-            # Buscar y mover "(1) OBLIGATORIO"
-            for row in range(1, worksheet.max_row + 1):
-                for col in range(1, worksheet.max_column + 1):
+            # Solo buscar en un rango limitado para evitar bucles infinitos
+            for row in range(60, min(worksheet.max_row + 1, 80)):
+                for col in range(1, min(worksheet.max_column + 1, 12)):
                     celda = worksheet.cell(row=row, column=col)
-                    if isinstance(celda.value, str) and "(1) OBLIGATORIO" in celda.value:
-                        # Mover a la nueva posición
-                        valor_original = celda.value
-                        celda.value = ""
-                        
-                        nueva_celda = worksheet.cell(row=nueva_fila_obligatorio, column=col)
-                        nueva_celda.value = valor_original
-                        print(f"Movido '(1) OBLIGATORIO' a fila {nueva_fila_obligatorio}")
-                        break
-            
-            # Buscar y mover "Nota:"
-            for row in range(1, worksheet.max_row + 1):
-                for col in range(1, worksheet.max_column + 1):
-                    celda = worksheet.cell(row=row, column=col)
-                    if isinstance(celda.value, str) and "Nota:" in celda.value:
-                        # Mover a la nueva posición
-                        valor_original = celda.value
-                        celda.value = ""
-                        
-                        nueva_celda = worksheet.cell(row=nueva_fila_nota, column=col)
-                        nueva_celda.value = valor_original
-                        print(f"Movido 'Nota:' a fila {nueva_fila_nota}")
-                        break
-                        
+                    if isinstance(celda.value, str):
+                        if "(1) OBLIGATORIO" in celda.value or "Nota:" in celda.value:
+                            # Mover a la nueva posición (5 filas antes del footer)
+                            nueva_fila = footer_row - 5
+                            valor_original = celda.value
+                            celda.value = ""
+                            
+                            nueva_celda = worksheet.cell(row=nueva_fila, column=col)
+                            nueva_celda.value = valor_original
+                            print(f"Movido elemento del footer a fila {nueva_fila}")
+                            
         except Exception as e:
             print(f"Error en _mover_elementos_footer: {e}")
             # No hacer nada si hay error para evitar bucles infinitos
