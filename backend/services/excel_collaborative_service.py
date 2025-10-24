@@ -611,18 +611,18 @@ class ExcelCollaborativeService:
             # Si encontramos "Entregado por:" o "Recibido por:", asegurar que estén completos
             if isinstance(valor_a, str) and ("Entregado por:" in valor_a or "Recibido por:" in valor_a):
                 print(f"Campo importante encontrado en fila {row}: {valor_a}")
-                # Asegurar que la celda tenga el texto completo
-                if "Entregado por:" in valor_a and not valor_a.strip().endswith(":"):
-                    worksheet.cell(row=row, column=1).value = "Entregado por:"
-                elif "Recibido por:" in valor_a and not valor_a.strip().endswith(":"):
+                # Asegurar que la celda tenga el texto completo con (Cliente)
+                if "Entregado por:" in valor_a:
+                    worksheet.cell(row=row, column=1).value = "Entregado por:\n(Cliente)"
+                elif "Recibido por:" in valor_a:
                     worksheet.cell(row=row, column=1).value = "Recibido por:"
                 break
             elif isinstance(valor_b, str) and ("Entregado por:" in valor_b or "Recibido por:" in valor_b):
                 print(f"Campo importante encontrado en columna B fila {row}: {valor_b}")
-                # Asegurar que la celda tenga el texto completo
-                if "Entregado por:" in valor_b and not valor_b.strip().endswith(":"):
-                    worksheet.cell(row=row, column=2).value = "Entregado por:"
-                elif "Recibido por:" in valor_b and not valor_b.strip().endswith(":"):
+                # Asegurar que la celda tenga el texto completo con (Cliente)
+                if "Entregado por:" in valor_b:
+                    worksheet.cell(row=row, column=2).value = "Entregado por:\n(Cliente)"
+                elif "Recibido por:" in valor_b:
                     worksheet.cell(row=row, column=2).value = "Recibido por:"
                 break
         
