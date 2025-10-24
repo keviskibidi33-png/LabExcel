@@ -223,9 +223,9 @@ class ExcelCollaborativeService:
             self._mover_elementos_footer(worksheet, footer_row)
             print(f"Aplicando optimizaciones completas para {total_items} items")
         elif total_items > 17:
-            # Para 18-39 items: mover elementos del footer (TEMPORALMENTE DESHABILITADO)
-            # self._mover_elementos_footer(worksheet, footer_row)
-            print(f"Saltando movimiento de footer para {total_items} items (debug)")
+            # Para 18-39 items: mover elementos del footer
+            self._mover_elementos_footer(worksheet, footer_row)
+            print(f"Moviendo elementos del footer para {total_items} items")
         else:
             # Para 17 o menos items: mantener template original completamente
             print(f"Manteniendo template original para {total_items} items - SIN MODIFICACIONES")
