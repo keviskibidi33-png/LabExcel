@@ -219,14 +219,15 @@ class ExcelCollaborativeService:
             self._unmerge_item_area(worksheet, footer_row)
             self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
             self._fusionar_celdas_footer(worksheet)
+            # Mover elementos del footer dinámicamente
+            self._mover_elementos_footer(worksheet, footer_row)
             print(f"Aplicando optimizaciones completas para {total_items} items")
         elif total_items > 17:
-            # Para 18-39 items: solo fusionar footer, mantener template original
-            self._fusionar_celdas_footer(worksheet)
-            print(f"Aplicando solo fusión de footer para {total_items} items")
+            # Para 18-39 items: mover elementos del footer
+            self._mover_elementos_footer(worksheet, footer_row)
+            print(f"Moviendo elementos del footer para {total_items} items")
         else:
             # Para 17 o menos items: mantener template original completamente
-            # NO tocar fusiones, NO insertar filas, NO clonar nada
             print(f"Manteniendo template original para {total_items} items - SIN MODIFICACIONES")
 
         for indice, muestra in enumerate(muestras):
@@ -373,10 +374,38 @@ class ExcelCollaborativeService:
         self._merge_item_row(worksheet, fila_destino)
 
     def _clonar_fusiones_fila(self, worksheet, fila_origen: int, fila_destino: int) -> None:
-        """FUNCIÓN DESHABILITADA - Usar _clonar_fusiones_items_sin_logo en su lugar"""
-        print(f"EVITANDO clonar fusiones en fila {fila_destino} para prevenir logos duplicados")
-        # NO hacer nada - evitar completamente la clonación de fusiones
-        return
+        rangos_existentes = {r.coord for r in worksheet.merged_cells.ranges}
+
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.min_row == rango.max_row == fila_origen:
+                celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
+                celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
+                coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
+                # Verificar si es el logo (evitar clonar múltiples veces)
+                celda_origen = worksheet.cell(row=fila_origen, column=rango.min_col)
+                if isinstance(celda_origen.value, str) and ("logo" in celda_origen.value.lower() or "geofal" in celda_origen.value.lower()):
+                    print(f"Evitando clonar logo en fila {fila_destino}")
+                    continue
+                    
+                if coord not in rangos_existentes:
+                    worksheet.merge_cells(coord)
+                    rangos_existentes.add(coord)
+        
+        # Asegurar bordes después de clonar fusiones
+        from openpyxl.styles import Border, Side
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Aplicar bordes a todas las celdas de la fila destino
+        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+            try:
+                worksheet[f'{col}{fila_destino}'].border = thin_border
+            except Exception:
+                pass
 
     def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
         """Limpiar filas restantes manteniendo el formato correcto"""
@@ -697,6 +726,40 @@ class ExcelCollaborativeService:
             return True
             
         return False
+
+    def _mover_elementos_footer(self, worksheet, footer_row: int) -> None:
+        """Mover elementos del footer dinámicamente cuando aumentan los items"""
+        # Buscar elementos del footer que necesitan moverse
+        elementos_footer = [
+            "(1) OBLIGATORIO",
+            "Nota:",
+            "Web:",
+            "geofal"
+        ]
+        
+        # Buscar la nueva posición del footer
+        nueva_fila_footer = footer_row - 5  # 5 filas antes del footer principal
+        
+        for elemento in elementos_footer:
+            # Buscar el elemento en el worksheet
+            for row in range(1, worksheet.max_row + 1):
+                for col in range(1, worksheet.max_column + 1):
+                    celda = worksheet.cell(row=row, column=col)
+                    if isinstance(celda.value, str) and elemento in celda.value:
+                        # Mover el elemento a la nueva posición
+                        try:
+                            # Limpiar la celda original
+                            celda.value = ""
+                            
+                            # Colocar en la nueva posición
+                            nueva_celda = worksheet.cell(row=nueva_fila_footer, column=col)
+                            nueva_celda.value = celda.value if elemento != "geofal" else "Web: www.geofal.com.pe / Correo: laboratorio@geofal.com.pe / Av. Marañon N°763 Los Olivos, Lima / Teléfono: 01-7543070"
+                            
+                            print(f"Movido '{elemento}' a fila {nueva_fila_footer}")
+                            break
+                        except Exception as e:
+                            print(f"Error moviendo '{elemento}': {e}")
+                            continue
 
 
 
