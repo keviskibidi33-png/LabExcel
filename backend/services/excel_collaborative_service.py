@@ -499,18 +499,41 @@ class ExcelCollaborativeService:
 
     def _fusionar_celdas_footer(self, worksheet) -> None:
         """Fusionar celdas del footer para evitar texto cortado con muchos items"""
-        # Buscar la fila 70 (o la fila del footer)
+        # Buscar la fila del footer (aproximadamente fila 70)
+        footer_row = None
         for row in range(65, worksheet.max_row + 1):
             valor = worksheet.cell(row=row, column=1).value
-            if isinstance(valor, str) and "Web:" in valor:
-                # Fusionar A:B y F:G en la fila del footer
-                try:
-                    worksheet.merge_cells(f'A{row}:B{row}')
-                    worksheet.merge_cells(f'F{row}:G{row}')
-                    print(f"Fusionadas celdas del footer en fila {row}")
-                except Exception as e:
-                    print(f"Error fusionando footer: {e}")
+            if isinstance(valor, str) and ("Web:" in valor or "geofal" in valor.lower()):
+                footer_row = row
                 break
+        
+        if footer_row:
+            print(f"Encontrada fila del footer: {footer_row}")
+            # Fusionar A:B y F:G en la fila del footer
+            try:
+                # Verificar si ya están fusionadas
+                merged_ranges = [r.coord for r in worksheet.merged_cells.ranges]
+                
+                if f'A{footer_row}:B{footer_row}' not in merged_ranges:
+                    worksheet.merge_cells(f'A{footer_row}:B{footer_row}')
+                    print(f"Fusionada A:B en fila {footer_row}")
+                
+                if f'F{footer_row}:G{footer_row}' not in merged_ranges:
+                    worksheet.merge_cells(f'F{footer_row}:G{footer_row}')
+                    print(f"Fusionada F:G en fila {footer_row}")
+                    
+            except Exception as e:
+                print(f"Error fusionando footer en fila {footer_row}: {e}")
+        else:
+            print("No se encontró la fila del footer")
+            # Intentar fusionar directamente en la fila 70
+            try:
+                print("Intentando fusionar directamente en fila 70...")
+                worksheet.merge_cells('A70:B70')
+                worksheet.merge_cells('F70:G70')
+                print("Fusionadas celdas en fila 70")
+            except Exception as e:
+                print(f"Error fusionando fila 70: {e}")
 
 
 
