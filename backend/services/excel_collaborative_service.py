@@ -206,9 +206,6 @@ class ExcelCollaborativeService:
         if not footer_row:
             raise ValueError("No se encontró el footer en la plantilla original")
 
-        footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
-        self._unmerge_item_area(worksheet, footer_row)
-        
         # Ajustar ancho de columna A para evitar "#" en números
         self._ajustar_ancho_columna_a(worksheet, total_items)
         
@@ -218,6 +215,8 @@ class ExcelCollaborativeService:
         # Lógica dinámica basada en el número de items
         if total_items >= 40:
             # Para 40+ items: aplicar todas las optimizaciones
+            footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
+            self._unmerge_item_area(worksheet, footer_row)
             self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
             self._fusionar_celdas_footer(worksheet)
             print(f"Aplicando optimizaciones completas para {total_items} items")
@@ -226,8 +225,9 @@ class ExcelCollaborativeService:
             self._fusionar_celdas_footer(worksheet)
             print(f"Aplicando solo fusión de footer para {total_items} items")
         else:
-            # Para 17 o menos items: mantener template original
-            print(f"Manteniendo template original para {total_items} items")
+            # Para 17 o menos items: mantener template original completamente
+            # NO tocar fusiones, NO insertar filas, NO clonar nada
+            print(f"Manteniendo template original para {total_items} items - SIN MODIFICACIONES")
 
         for indice, muestra in enumerate(muestras):
             fila_actual = fila_inicio + indice
@@ -333,19 +333,26 @@ class ExcelCollaborativeService:
 
     def _asegurar_capacidad_items(self, worksheet, footer_row: int, total_items: int) -> int:
         capacidad_actual = footer_row - self.FILA_INICIO_MUESTRAS
+        print(f"Capacidad actual: {capacidad_actual}, Items necesarios: {total_items}")
+        
+        # Solo insertar filas si realmente es necesario
         if total_items <= capacidad_actual:
+            print(f"No se necesitan filas adicionales para {total_items} items")
             return footer_row
 
         filas_extra = total_items - capacidad_actual
+        print(f"Insertando {filas_extra} filas adicionales SOLO para items de datos")
+        
         fila_patron = footer_row - 2
         fila_separador = footer_row - 1
 
-        worksheet.insert_rows(fila_separador, amount=filas_extra)
-
-        for offset in range(filas_extra):
-            fila_destino = fila_separador + offset
+        # Insertar filas de una en una para mejor control
+        for i in range(filas_extra):
+            worksheet.insert_rows(fila_separador + i, amount=1)
+            fila_destino = fila_separador + i
             self._copiar_estilo_fila(worksheet, fila_patron, fila_destino)
-            self._clonar_fusiones_fila(worksheet, fila_patron, fila_destino)
+            # Solo clonar fusiones de items, NO del logo
+            self._clonar_fusiones_items_sin_logo(worksheet, fila_patron, fila_destino)
 
         return footer_row + filas_extra
 
@@ -373,6 +380,12 @@ class ExcelCollaborativeService:
                 celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
                 celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
                 coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
+                # Verificar si es el logo (evitar clonar múltiples veces)
+                celda_origen = worksheet.cell(row=fila_origen, column=rango.min_col)
+                if isinstance(celda_origen.value, str) and ("logo" in celda_origen.value.lower() or "geofal" in celda_origen.value.lower()):
+                    print(f"Evitando clonar logo en fila {fila_destino}")
+                    continue
+                    
                 if coord not in rangos_existentes:
                     worksheet.merge_cells(coord)
                     rangos_existentes.add(coord)
@@ -660,6 +673,58 @@ class ExcelCollaborativeService:
                     pass
         
         print(f"Centradas todas las filas de items ({total_items} filas)")
+
+    def _clonar_fusiones_items_sin_logo(self, worksheet, fila_origen: int, fila_destino: int) -> None:
+        """Clonar solo fusiones de items, NO del logo ni elementos del template"""
+        rangos_existentes = {r.coord for r in worksheet.merged_cells.ranges}
+
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.min_row == rango.max_row == fila_origen:
+                # Verificar si es del área de items (no logo ni template)
+                celda_origen = worksheet.cell(row=fila_origen, column=rango.min_col)
+                
+                # Solo clonar si es del área de items (evitar logo, headers, etc.)
+                if self._es_fusion_de_items(celda_origen, rango):
+                    celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
+                    celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
+                    coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
+                    if coord not in rangos_existentes:
+                        worksheet.merge_cells(coord)
+                        rangos_existentes.add(coord)
+                        print(f"Clonada fusión de items: {coord}")
+                else:
+                    print(f"Evitando clonar fusión del template: {rango.coord}")
+        
+        # Asegurar bordes después de clonar fusiones
+        from openpyxl.styles import Border, Side
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Aplicar bordes a todas las celdas de la fila destino
+        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+            try:
+                worksheet[f'{col}{fila_destino}'].border = thin_border
+            except Exception:
+                pass
+
+    def _es_fusion_de_items(self, celda, rango) -> bool:
+        """Determinar si una fusión pertenece al área de items (no logo ni template)"""
+        # Verificar si contiene texto del logo o elementos del template
+        if isinstance(celda.value, str):
+            texto = celda.value.lower()
+            # Evitar clonar si contiene elementos del template
+            if any(palabra in texto for palabra in ['logo', 'geofal', 'header', 'titulo', 'encabezado']):
+                return False
+        
+        # Verificar si está en el área de items (filas típicas de items)
+        if rango.min_row >= 20 and rango.min_row <= 60:  # Área típica de items
+            return True
+            
+        return False
 
 
 
