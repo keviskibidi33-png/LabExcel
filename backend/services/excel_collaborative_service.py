@@ -499,12 +499,25 @@ class ExcelCollaborativeService:
 
     def _fusionar_celdas_footer(self, worksheet) -> None:
         """Fusionar celdas del footer para evitar texto cortado con muchos items"""
-        # Buscar la fila del footer (aproximadamente fila 70)
+        # Buscar la fila del footer buscando "Entregado por:" o "Recibido por:"
         footer_row = None
         for row in range(65, worksheet.max_row + 1):
-            valor = worksheet.cell(row=row, column=1).value
-            if isinstance(valor, str) and ("Web:" in valor or "geofal" in valor.lower()):
+            valor_a = worksheet.cell(row=row, column=1).value
+            valor_b = worksheet.cell(row=row, column=2).value
+            
+            # Buscar por "Entregado por:" o "Recibido por:"
+            if isinstance(valor_a, str) and ("Entregado por:" in valor_a or "Recibido por:" in valor_a):
                 footer_row = row
+                print(f"Encontrada fila del footer por texto en columna A: {row}")
+                break
+            elif isinstance(valor_b, str) and ("Entregado por:" in valor_b or "Recibido por:" in valor_b):
+                footer_row = row
+                print(f"Encontrada fila del footer por texto en columna B: {row}")
+                break
+            # Fallback: buscar por "Web:" o "geofal"
+            elif isinstance(valor_a, str) and ("Web:" in valor_a or "geofal" in valor_a.lower()):
+                footer_row = row
+                print(f"Encontrada fila del footer por Web en columna A: {row}")
                 break
         
         if footer_row:
