@@ -534,6 +534,14 @@ class ExcelCollaborativeService:
                 if f'F{footer_row}:G{footer_row}' not in merged_ranges:
                     worksheet.merge_cells(f'F{footer_row}:G{footer_row}')
                     print(f"Fusionada F:G en fila {footer_row}")
+                
+                # Establecer altura de fila y wrap_text para visualización correcta
+                worksheet.row_dimensions[footer_row].height = 30  # Altura para dos líneas de texto
+                
+                # Aplicar wrap_text y alineación a las celdas relevantes
+                from openpyxl.styles import Alignment
+                worksheet.cell(row=footer_row, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                worksheet.cell(row=footer_row, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
                     
             except Exception as e:
                 print(f"Error fusionando footer en fila {footer_row}: {e}")
@@ -545,6 +553,12 @@ class ExcelCollaborativeService:
                 worksheet.merge_cells('A70:B70')
                 worksheet.merge_cells('F70:G70')
                 print("Fusionadas celdas en fila 70")
+                
+                # También establecer altura y wrap_text para la fila 70 directa
+                worksheet.row_dimensions[70].height = 30
+                from openpyxl.styles import Alignment
+                worksheet.cell(row=70, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                worksheet.cell(row=70, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
             except Exception as e:
                 print(f"Error fusionando fila 70: {e}")
 
