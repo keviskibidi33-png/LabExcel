@@ -373,38 +373,10 @@ class ExcelCollaborativeService:
         self._merge_item_row(worksheet, fila_destino)
 
     def _clonar_fusiones_fila(self, worksheet, fila_origen: int, fila_destino: int) -> None:
-        rangos_existentes = {r.coord for r in worksheet.merged_cells.ranges}
-
-        for rango in list(worksheet.merged_cells.ranges):
-            if rango.min_row == rango.max_row == fila_origen:
-                celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
-                celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
-                coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
-                # Verificar si es el logo (evitar clonar múltiples veces)
-                celda_origen = worksheet.cell(row=fila_origen, column=rango.min_col)
-                if isinstance(celda_origen.value, str) and ("logo" in celda_origen.value.lower() or "geofal" in celda_origen.value.lower()):
-                    print(f"Evitando clonar logo en fila {fila_destino}")
-                    continue
-                    
-                if coord not in rangos_existentes:
-                    worksheet.merge_cells(coord)
-                    rangos_existentes.add(coord)
-        
-        # Asegurar bordes después de clonar fusiones
-        from openpyxl.styles import Border, Side
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        
-        # Aplicar bordes a todas las celdas de la fila destino
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
-            try:
-                worksheet[f'{col}{fila_destino}'].border = thin_border
-            except Exception:
-                pass
+        """FUNCIÓN DESHABILITADA - Usar _clonar_fusiones_items_sin_logo en su lugar"""
+        print(f"EVITANDO clonar fusiones en fila {fila_destino} para prevenir logos duplicados")
+        # NO hacer nada - evitar completamente la clonación de fusiones
+        return
 
     def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
         """Limpiar filas restantes manteniendo el formato correcto"""
