@@ -209,11 +209,25 @@ class ExcelCollaborativeService:
         footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
         self._unmerge_item_area(worksheet, footer_row)
         
-        # Desfusionar y re-fusionar para tener control total solo si hay muchos items
-        if total_items > 17:
+        # Ajustar ancho de columna A para evitar "#" en números
+        self._ajustar_ancho_columna_a(worksheet, total_items)
+        
+        # SIEMPRE asegurar que los campos importantes estén presentes
+        self._asegurar_campos_importantes(worksheet)
+        
+        # Lógica dinámica basada en el número de items
+        if total_items >= 40:
+            # Para 40+ items: aplicar todas las optimizaciones
             self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
-            # Fusionar celdas del footer para evitar texto cortado
             self._fusionar_celdas_footer(worksheet)
+            print(f"Aplicando optimizaciones completas para {total_items} items")
+        elif total_items > 17:
+            # Para 18-39 items: solo fusionar footer, mantener template original
+            self._fusionar_celdas_footer(worksheet)
+            print(f"Aplicando solo fusión de footer para {total_items} items")
+        else:
+            # Para 17 o menos items: mantener template original
+            print(f"Manteniendo template original para {total_items} items")
 
         for indice, muestra in enumerate(muestras):
             fila_actual = fila_inicio + indice
@@ -256,6 +270,9 @@ class ExcelCollaborativeService:
         
         # Centrar datos de filas específicas (20, 21, 29) cuando tengan items
         self._centrar_filas_especificas(worksheet, fila_inicio, total_items)
+        
+        # SIEMPRE centrar el último número de item
+        self._centrar_ultimo_item(worksheet, fila_inicio, total_items)
     
     def _centrar_filas_especificas(self, worksheet, fila_inicio: int, total_items: int) -> None:
         """Centrar datos de filas específicas (items 20, 21, 24, 25, 26, 27, 29, 40) cuando tengan items"""
@@ -535,13 +552,17 @@ class ExcelCollaborativeService:
                     worksheet.merge_cells(f'F{footer_row}:G{footer_row}')
                     print(f"Fusionada F:G en fila {footer_row}")
                 
-                # Establecer altura de fila y wrap_text para visualización correcta
-                worksheet.row_dimensions[footer_row].height = 30  # Altura para dos líneas de texto
-                
-                # Aplicar wrap_text y alineación a las celdas relevantes
-                from openpyxl.styles import Alignment
-                worksheet.cell(row=footer_row, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-                worksheet.cell(row=footer_row, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                # Solo aplicar altura y wrap_text si hay muchos items (40+)
+                if hasattr(self, '_total_items') and self._total_items >= 40:
+                    worksheet.row_dimensions[footer_row].height = 30  # Altura para dos líneas de texto
+                    
+                    # Aplicar wrap_text y alineación a las celdas relevantes
+                    from openpyxl.styles import Alignment
+                    worksheet.cell(row=footer_row, column=1).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                    worksheet.cell(row=footer_row, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                    print(f"Aplicando altura y wrap_text para {self._total_items} items")
+                else:
+                    print(f"Manteniendo altura original del template para {getattr(self, '_total_items', 'desconocido')} items")
                     
             except Exception as e:
                 print(f"Error fusionando footer en fila {footer_row}: {e}")
@@ -561,6 +582,66 @@ class ExcelCollaborativeService:
                 worksheet.cell(row=70, column=6).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
             except Exception as e:
                 print(f"Error fusionando fila 70: {e}")
+
+    def _ajustar_ancho_columna_a(self, worksheet, total_items: int) -> None:
+        """Ajustar ancho de columna A de manera precisa para evitar '#' en números"""
+        # Calcular ancho necesario basado en el número de items
+        if total_items <= 9:
+            # Para 1-9: ancho mínimo
+            ancho = 6.0
+        elif total_items <= 99:
+            # Para 10-99: ancho medio
+            ancho = 8.0
+        else:
+            # Para 100+: ancho máximo
+            ancho = 10.0
+        
+        # Aplicar el ancho con precisión de 2-3px
+        worksheet.column_dimensions['A'].width = ancho
+        print(f"Ajustado ancho de columna A a {ancho} para {total_items} items")
+
+    def _asegurar_campos_importantes(self, worksheet) -> None:
+        """Asegurar que los campos importantes SIEMPRE estén presentes sin importar el número de items"""
+        # Buscar y asegurar que "Entregado por:" y "Recibido por:" estén presentes
+        for row in range(45, worksheet.max_row + 1):
+            valor_a = worksheet.cell(row=row, column=1).value
+            valor_b = worksheet.cell(row=row, column=2).value
+            
+            # Si encontramos "Entregado por:" o "Recibido por:", asegurar que estén completos
+            if isinstance(valor_a, str) and ("Entregado por:" in valor_a or "Recibido por:" in valor_a):
+                print(f"Campo importante encontrado en fila {row}: {valor_a}")
+                # Asegurar que la celda tenga el texto completo
+                if "Entregado por:" in valor_a and not valor_a.strip().endswith(":"):
+                    worksheet.cell(row=row, column=1).value = "Entregado por:"
+                elif "Recibido por:" in valor_a and not valor_a.strip().endswith(":"):
+                    worksheet.cell(row=row, column=1).value = "Recibido por:"
+                break
+            elif isinstance(valor_b, str) and ("Entregado por:" in valor_b or "Recibido por:" in valor_b):
+                print(f"Campo importante encontrado en columna B fila {row}: {valor_b}")
+                # Asegurar que la celda tenga el texto completo
+                if "Entregado por:" in valor_b and not valor_b.strip().endswith(":"):
+                    worksheet.cell(row=row, column=2).value = "Entregado por:"
+                elif "Recibido por:" in valor_b and not valor_b.strip().endswith(":"):
+                    worksheet.cell(row=row, column=2).value = "Recibido por:"
+                break
+        
+        print("Campos importantes verificados y asegurados")
+
+    def _centrar_ultimo_item(self, worksheet, fila_inicio: int, total_items: int) -> None:
+        """SIEMPRE centrar el último número de item sin importar la cantidad"""
+        from openpyxl.styles import Alignment
+        
+        if total_items > 0:
+            # Calcular la fila del último item
+            ultima_fila = fila_inicio + total_items - 1
+            
+            # Centrar el número en la columna A
+            try:
+                celda_a = worksheet[f'A{ultima_fila}']
+                celda_a.alignment = Alignment(horizontal='center', vertical='center')
+                print(f"Centrado último item en fila {ultima_fila} (item {total_items})")
+            except Exception as e:
+                print(f"Error centrando último item: {e}")
 
 
 
