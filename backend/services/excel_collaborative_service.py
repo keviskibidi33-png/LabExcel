@@ -729,37 +729,29 @@ class ExcelCollaborativeService:
 
     def _mover_elementos_footer(self, worksheet, footer_row: int) -> None:
         """Mover elementos del footer dinámicamente cuando aumentan los items"""
-        # Buscar elementos del footer que necesitan moverse
-        elementos_footer = [
-            "(1) OBLIGATORIO",
-            "Nota:",
-            "Web:",
-            "geofal"
-        ]
-        
-        # Buscar la nueva posición del footer
-        nueva_fila_footer = footer_row - 5  # 5 filas antes del footer principal
-        
-        for elemento in elementos_footer:
-            # Buscar el elemento en el worksheet
-            for row in range(1, worksheet.max_row + 1):
-                for col in range(1, worksheet.max_column + 1):
+        try:
+            # Buscar la nueva posición del footer
+            nueva_fila_footer = footer_row - 5  # 5 filas antes del footer principal
+            
+            # Solo buscar en un rango limitado para evitar bucles infinitos
+            for row in range(60, min(worksheet.max_row + 1, 80)):  # Rango limitado
+                for col in range(1, min(worksheet.max_column + 1, 12)):  # Columnas limitadas
                     celda = worksheet.cell(row=row, column=col)
-                    if isinstance(celda.value, str) and elemento in celda.value:
-                        # Mover el elemento a la nueva posición
-                        try:
-                            # Limpiar la celda original
+                    if isinstance(celda.value, str):
+                        # Buscar elementos específicos
+                        if "(1) OBLIGATORIO" in celda.value or "Nota:" in celda.value:
+                            # Mover el elemento a la nueva posición
+                            valor_original = celda.value
                             celda.value = ""
                             
-                            # Colocar en la nueva posición
                             nueva_celda = worksheet.cell(row=nueva_fila_footer, column=col)
-                            nueva_celda.value = celda.value if elemento != "geofal" else "Web: www.geofal.com.pe / Correo: laboratorio@geofal.com.pe / Av. Marañon N°763 Los Olivos, Lima / Teléfono: 01-7543070"
+                            nueva_celda.value = valor_original
                             
-                            print(f"Movido '{elemento}' a fila {nueva_fila_footer}")
-                            break
-                        except Exception as e:
-                            print(f"Error moviendo '{elemento}': {e}")
-                            continue
+                            print(f"Movido elemento del footer a fila {nueva_fila_footer}")
+                            
+        except Exception as e:
+            print(f"Error en _mover_elementos_footer: {e}")
+            # No hacer nada si hay error para evitar bucles infinitos
 
 
 
