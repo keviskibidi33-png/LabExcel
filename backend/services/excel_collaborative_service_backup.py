@@ -75,49 +75,25 @@ class ExcelCollaborativeService:
         # print("TEMPLATE REAL USADO EXITOSAMENTE")
         return excel_buffer.getvalue()
     
-    def _safe_set_cell(self, worksheet, cell_ref: str, value: Any) -> None:
-        """Función única para establecer valores en celdas, manejando fusiones"""
-        try:
-            if isinstance(value, str):
-                value = value.strip()
-            
-            cell = worksheet[cell_ref]
-            target_cell = cell
-            
-            # Verificar si es una celda fusionada
-            for merged_range in worksheet.merged_cells.ranges:
-                if cell_ref in merged_range:
-                    top_left = merged_range.min_row, merged_range.min_col
-                    target_cell = worksheet.cell(row=top_left[0], column=top_left[1])
-                    break
-            
-            target_cell.value = value
-            
-            # Aplicar alineación y wrap_text según el contexto
-            from openpyxl.styles import Alignment
-            
-            # Aplicar wrap_text solo para campos específicos y solo cuando hay muchos items
-            if cell_ref in ['H46', 'D49', 'H49']:  # fecha estimada, entregado por, recibido por
-                # Solo aplicar wrap_text si hay muchos items (más de 17)
-                if hasattr(self, '_total_items') and self._total_items > 17:
-                    target_cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                    # Asegurar que la fila tenga altura suficiente para el wrap text
-                    worksheet.row_dimensions[target_cell.row].height = max(worksheet.row_dimensions[target_cell.row].height, 30)
-                else:
-                    # Mantener alineación original del template
-                    target_cell.alignment = Alignment(horizontal='center', vertical='bottom')
-            else:
-                # Solo aplicar wrap_text si hay muchos items
-                if hasattr(self, '_total_items') and self._total_items > 17:
-                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom', wrap_text=True)
-                else:
-                    target_cell.alignment = Alignment(horizontal='left', vertical='bottom')
-                    
-        except Exception as e:
-            print(f"Error estableciendo celda {cell_ref}: {e}")
-
     def _rellenar_datos_recepcion(self, worksheet, recepcion_data: Dict[str, Any]):
         """Rellenar datos de la recepción en el Excel"""
+        
+        def safe_set_cell(cell_ref, value):
+            try:
+                if isinstance(value, str):
+                    value = value.strip()
+                
+                cell = worksheet[cell_ref]
+                target_cell = cell
+                
+                # Verificar si es una celda fusionada
+                for merged_range in worksheet.merged_cells.ranges:
+                    if cell_ref in merged_range:
+                        top_left = merged_range.min_row, merged_range.min_col
+                        target_cell = worksheet.cell(row=top_left[0], column=top_left[1])
+                        break
+                
+                target_cell.value = value
                 
                 # Centrar las X en los cuadros de checkboxes
                 if cell_ref in ['B46', 'B47'] and value == 'X':
@@ -236,23 +212,15 @@ class ExcelCollaborativeService:
         # SIEMPRE asegurar que los campos importantes estén presentes
         self._asegurar_campos_importantes(worksheet)
         
-        # Lógica dinámica basada en el número de items
-        if total_items >= 40:
-            # Para 40+ items: aplicar todas las optimizaciones
-            footer_row = self._asegurar_capacidad_items(worksheet, footer_row, total_items)
-            self._unmerge_item_area(worksheet, footer_row)
-            self._refusionar_items_con_control(worksheet, fila_inicio, total_items)
-            self._fusionar_celdas_footer(worksheet)
-            # Mover elementos del footer dinámicamente
-            self._mover_elementos_footer(worksheet, footer_row)
-            print(f"Aplicando optimizaciones completas para {total_items} items")
-        elif total_items > 17:
-            # Para 18-39 items: mover elementos del footer
-            self._mover_elementos_footer(worksheet, footer_row)
-            print(f"Moviendo elementos del footer para {total_items} items")
+        # Lógica dinámica basada en el número de items - SIMPLIFICADA
+        if total_items > 17:
+            # Para 18+ items: solo mover footer si es necesario
+            from .footer_functions import mover_footer_simple, asegurar_contenido_footer
+            footer_row = mover_footer_simple(worksheet, footer_row, total_items)
+            print(f"Footer ajustado para {total_items} items")
         else:
-            # Para 17 o menos items: mantener template original completamente
-            print(f"Manteniendo template original para {total_items} items - SIN MODIFICACIONES")
+            # Para 17 o menos items: mantener template original
+            print(f"Manteniendo template original para {total_items} items")
 
         for indice, muestra in enumerate(muestras):
             fila_actual = fila_inicio + indice
@@ -398,38 +366,10 @@ class ExcelCollaborativeService:
         self._merge_item_row(worksheet, fila_destino)
 
     def _clonar_fusiones_fila(self, worksheet, fila_origen: int, fila_destino: int) -> None:
-        rangos_existentes = {r.coord for r in worksheet.merged_cells.ranges}
-
-        for rango in list(worksheet.merged_cells.ranges):
-            if rango.min_row == rango.max_row == fila_origen:
-                celda_inicio = worksheet.cell(row=fila_destino, column=rango.min_col)
-                celda_fin = worksheet.cell(row=fila_destino, column=rango.max_col)
-                coord = f"{celda_inicio.coordinate}:{celda_fin.coordinate}"
-                # Verificar si es el logo (evitar clonar múltiples veces)
-                celda_origen = worksheet.cell(row=fila_origen, column=rango.min_col)
-                if isinstance(celda_origen.value, str) and ("logo" in celda_origen.value.lower() or "geofal" in celda_origen.value.lower()):
-                    print(f"Evitando clonar logo en fila {fila_destino}")
-                    continue
-                    
-                if coord not in rangos_existentes:
-                    worksheet.merge_cells(coord)
-                    rangos_existentes.add(coord)
-        
-        # Asegurar bordes después de clonar fusiones
-        from openpyxl.styles import Border, Side
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        
-        # Aplicar bordes a todas las celdas de la fila destino
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
-            try:
-                worksheet[f'{col}{fila_destino}'].border = thin_border
-            except Exception:
-                pass
+        """FUNCIÓN DESHABILITADA - Usar _clonar_fusiones_items_sin_logo en su lugar"""
+        print(f"EVITANDO clonar fusiones en fila {fila_destino} para prevenir logos duplicados")
+        # NO hacer nada - evitar completamente la clonación de fusiones
+        return
 
     def _limpiar_filas_restantes(self, worksheet, fila_inicio_libre: int, fila_footer: int, columnas: List[str]) -> None:
         """Limpiar filas restantes manteniendo el formato correcto"""
@@ -750,42 +690,6 @@ class ExcelCollaborativeService:
             return True
             
         return False
-
-    def _mover_elementos_footer(self, worksheet, footer_row: int) -> None:
-        """Mover elementos del footer dinámicamente cuando aumentan los items"""
-        try:
-            print(f"Intentando mover elementos del footer desde fila {footer_row}")
-            
-            # Calcular nuevas posiciones
-            nueva_fila_obligatorio = footer_row - 5
-            nueva_fila_nota = footer_row - 4
-            
-            # Buscar elementos en todo el worksheet
-            for row in range(1, worksheet.max_row + 1):
-                for col in range(1, worksheet.max_column + 1):
-                    celda = worksheet.cell(row=row, column=col)
-                    if isinstance(celda.value, str):
-                        # Buscar y mover "(1) OBLIGATORIO"
-                        if "(1) OBLIGATORIO" in celda.value:
-                            valor_original = celda.value
-                            celda.value = ""
-                            
-                            nueva_celda = worksheet.cell(row=nueva_fila_obligatorio, column=col)
-                            nueva_celda.value = valor_original
-                            print(f"Movido '(1) OBLIGATORIO' a fila {nueva_fila_obligatorio}")
-                            
-                        # Buscar y mover "Nota:"
-                        elif "Nota:" in celda.value:
-                            valor_original = celda.value
-                            celda.value = ""
-                            
-                            nueva_celda = worksheet.cell(row=nueva_fila_nota, column=col)
-                            nueva_celda.value = valor_original
-                            print(f"Movido 'Nota:' a fila {nueva_fila_nota}")
-                            
-        except Exception as e:
-            print(f"Error en _mover_elementos_footer: {e}")
-            # No hacer nada si hay error para evitar bucles infinitos
 
 
 
