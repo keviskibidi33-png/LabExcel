@@ -223,15 +223,30 @@ class ExcelCollaborativeService:
             except Exception:
                 pass
             
-            # Corrección específica para fila 49 - asegurar ancho
+            # Corrección específica para fila 49 - problemas especiales
             if fila_actual == 49:
-                print("Aplicando corrección específica para fila 49...")
-                # Asegurar ancho suficiente para códigos largos
+                print("Aplicando corrección ESPECÍFICA para fila 49...")
+                # Desfusionar A:B si están fusionadas
+                coord_a_b = f"A{fila_actual}:B{fila_actual}"
+                for rango in list(worksheet.merged_cells.ranges):
+                    if rango.coord == coord_a_b:
+                        worksheet.unmerge_cells(coord_a_b)
+                        print(f"Desfusionadas A:B en fila 49")
+                        break
+                
+                # Asegurar que el código esté en B
+                codigo_value = muestra.get('codigo_muestra_lem', '')
+                if codigo_value:
+                    worksheet[f'B{fila_actual}'].value = codigo_value
+                    print(f"Código {codigo_value} forzado en B49")
+                
+                # Asegurar ancho de columnas
                 worksheet.column_dimensions['A'].width = 15.0
-                print("Corrección aplicada para fila 49")
+                worksheet.column_dimensions['B'].width = 20.0
+                print("Corrección ESPECÍFICA aplicada para fila 49")
             
-            # Corrección para items 18+ - asegurar códigos visibles
-            if fila_actual >= 40:  # A partir del item 18 (fila 40 = item 18)
+            # Corrección para items 18+ (excluyendo fila 49 que ya se procesó)
+            elif fila_actual >= 40:  # A partir del item 18 (fila 40 = item 18)
                 print(f"Aplicando corrección para item 18+ en fila {fila_actual}...")
                 # Asegurar que el código esté en B y sea visible
                 codigo_value = muestra.get('codigo_muestra_lem', '')
@@ -252,6 +267,75 @@ class ExcelCollaborativeService:
             
             # Fusionar solo B:C y desfusionar F:G si es necesario
             self._merge_item_row(worksheet, fila_actual)
+            
+            # Corrección final específica para fila 49
+            if fila_actual == 49:
+                print("Aplicando corrección FINAL para fila 49...")
+                
+                # Desfusionar A:B definitivamente
+                coord_a_b = f"A49:B49"
+                for rango in list(worksheet.merged_cells.ranges):
+                    if rango.coord == coord_a_b:
+                        worksheet.unmerge_cells(coord_a_b)
+                        print("Desfusionadas A:B definitivamente en fila 49")
+                        break
+                
+                # Asegurar que B:C estén fusionadas
+                coord_b_c = f"B49:C49"
+                already_merged = False
+                for rango in worksheet.merged_cells.ranges:
+                    if rango.coord == coord_b_c:
+                        already_merged = True
+                        break
+                if not already_merged:
+                    worksheet.merge_cells(coord_b_c)
+                    print("Fusionadas B:C definitivamente en fila 49")
+                
+                # Desfusionar F:G definitivamente
+                coord_f_g = f"F49:G49"
+                for rango in list(worksheet.merged_cells.ranges):
+                    if rango.coord == coord_f_g:
+                        worksheet.unmerge_cells(coord_f_g)
+                        print("Desfusionadas F:G definitivamente en fila 49")
+                        break
+                
+                # Corregir datos específicos de la fila 49
+                # A49: Número de item (no número de fila)
+                worksheet['A49'].value = item_numero
+                print(f"Número de item {item_numero} establecido en A49")
+                
+                # B49: Código de muestra
+                codigo_value = muestra.get('codigo_muestra_lem', '')
+                if codigo_value:
+                    worksheet['B49'].value = codigo_value
+                    print(f"Código {codigo_value} establecido en B49")
+                
+                # E49: Estructura (está vacía en la imagen)
+                estructura = muestra.get('estructura', '')
+                if estructura:
+                    worksheet['E49'].value = estructura
+                    print(f"Estructura {estructura} establecida en E49")
+                
+                # Aplicar bordes a toda la fila 49
+                from openpyxl.styles import Border, Side
+                thin_border = Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                )
+                
+                for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']:
+                    try:
+                        worksheet[f'{col}49'].border = thin_border
+                    except Exception:
+                        pass
+                
+                # Asegurar anchos de columnas
+                worksheet.column_dimensions['A'].width = 15.0
+                worksheet.column_dimensions['B'].width = 20.0
+                
+                print("Corrección FINAL aplicada exitosamente para fila 49")
 
         self._limpiar_filas_restantes(worksheet, fila_inicio + total_items, footer_row, columnas_tabla)
         # Solo eliminar segunda línea web si hay muchos items
