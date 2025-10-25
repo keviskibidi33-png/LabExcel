@@ -215,8 +215,8 @@ class ExcelCollaborativeService:
             # Establecer número de item en columna A
             safe_set_cell(f'A{fila_actual}', item_numero)
             
-            # Establecer código en columna C (no B)
-            codigo_ref = f'C{fila_actual}'
+            # Establecer código en columna B (B:C fusionadas)
+            codigo_ref = f'B{fila_actual}'
             safe_set_cell(codigo_ref, muestra.get('codigo_muestra_lem', ''))
             try:
                 worksheet[codigo_ref].number_format = '@'
@@ -229,6 +229,18 @@ class ExcelCollaborativeService:
                 # Asegurar ancho suficiente para códigos largos
                 worksheet.column_dimensions['A'].width = 15.0
                 print("Corrección aplicada para fila 49")
+            
+            # Corrección para items 18+ - asegurar códigos visibles
+            if fila_actual >= 40:  # A partir del item 18 (fila 40 = item 18)
+                print(f"Aplicando corrección para item 18+ en fila {fila_actual}...")
+                # Asegurar que el código esté en B y sea visible
+                codigo_value = muestra.get('codigo_muestra_lem', '')
+                if codigo_value:
+                    worksheet[f'B{fila_actual}'].value = codigo_value
+                    print(f"Código {codigo_value} establecido en B{fila_actual}")
+                # Asegurar ancho de columna B para códigos
+                worksheet.column_dimensions['B'].width = 20.0
+                print(f"Ancho de columna B ajustado para fila {fila_actual}")
             safe_set_cell(f'D{fila_actual}', muestra.get('identificacion_muestra', ''))
             safe_set_cell(f'E{fila_actual}', muestra.get('estructura', ''))
             safe_set_cell(f'F{fila_actual}', muestra.get('fc_kg_cm2', ''))
@@ -425,6 +437,14 @@ class ExcelCollaborativeService:
 
     @staticmethod
     def _merge_item_row(worksheet, fila: int) -> None:
+        # Desfusionar A:B si están fusionadas incorrectamente
+        coord_a_b = f"A{fila}:B{fila}"
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.coord == coord_a_b:
+                worksheet.unmerge_cells(coord_a_b)
+                print(f"Desfusionadas celdas A{fila}:B{fila}")
+                break
+        
         # Desfusionar F:G si están fusionadas incorrectamente
         coord_f_g = f"F{fila}:G{fila}"
         for rango in list(worksheet.merged_cells.ranges):
@@ -433,7 +453,7 @@ class ExcelCollaborativeService:
                 print(f"Desfusionadas celdas F{fila}:G{fila}")
                 break
         
-        # Solo fusionar B:C, NO F:G
+        # Solo fusionar B:C, NO A:B ni F:G
         coord = f"B{fila}:C{fila}"
         for rango in worksheet.merged_cells.ranges:
             if rango.coord == coord:
