@@ -223,17 +223,6 @@ class ExcelCollaborativeService:
             except Exception:
                 pass
             
-            # Fusionar B:C para todas las filas de items
-            coord = f"B{fila_actual}:C{fila_actual}"
-            already_merged = False
-            for rango in worksheet.merged_cells.ranges:
-                if rango.coord == coord:
-                    already_merged = True
-                    break
-            if not already_merged:
-                worksheet.merge_cells(coord)
-                print(f"Fusionadas celdas B{fila_actual}:C{fila_actual}")
-            
             # Corrección específica para fila 49 - asegurar ancho
             if fila_actual == 49:
                 print("Aplicando corrección específica para fila 49...")
@@ -248,6 +237,8 @@ class ExcelCollaborativeService:
             safe_set_cell(f'I{fila_actual}', muestra.get('edad', ''))
             safe_set_cell(f'J{fila_actual}', muestra.get('fecha_rotura', ''))
             safe_set_cell(f'K{fila_actual}', 'SI' if muestra.get('requiere_densidad', False) else 'NO')
+            
+            # Fusionar solo B:C y desfusionar F:G si es necesario
             self._merge_item_row(worksheet, fila_actual)
 
         self._limpiar_filas_restantes(worksheet, fila_inicio + total_items, footer_row, columnas_tabla)
@@ -434,6 +425,15 @@ class ExcelCollaborativeService:
 
     @staticmethod
     def _merge_item_row(worksheet, fila: int) -> None:
+        # Desfusionar F:G si están fusionadas incorrectamente
+        coord_f_g = f"F{fila}:G{fila}"
+        for rango in list(worksheet.merged_cells.ranges):
+            if rango.coord == coord_f_g:
+                worksheet.unmerge_cells(coord_f_g)
+                print(f"Desfusionadas celdas F{fila}:G{fila}")
+                break
+        
+        # Solo fusionar B:C, NO F:G
         coord = f"B{fila}:C{fila}"
         for rango in worksheet.merged_cells.ranges:
             if rango.coord == coord:
