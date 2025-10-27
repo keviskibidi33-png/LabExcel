@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+import os
 
 # Configuración y utilidades
 from config import settings
@@ -21,10 +22,12 @@ from utils.validators import DataValidator
 
 # Base de datos y modelos
 from database import get_db, engine
-from models import Base, RecepcionMuestra, MuestraConcreto, OrdenTrabajo, ItemOrdenTrabajo
+from models import Base, RecepcionMuestra, MuestraConcreto, OrdenTrabajo, ItemOrdenTrabajo, ControlConcreto, ProbetaConcreto
 from schemas import (
     RecepcionMuestraCreate, RecepcionMuestraResponse, MuestraConcretoCreate,
-    OrdenTrabajoCreate, OrdenTrabajoResponse, OrdenTrabajoUpdate
+    OrdenTrabajoCreate, OrdenTrabajoResponse, OrdenTrabajoUpdate,
+    ControlConcretoCreate, ControlConcretoResponse, ProbetaConcretoCreate, ProbetaConcretoBase,
+    BusquedaClienteRequest, BusquedaClienteResponse
 )
 
 # Servicios
@@ -33,6 +36,7 @@ from services.orden_service import RecepcionService
 from services.ot_service import OTService
 from services.excel_collaborative_service import ExcelCollaborativeService
 from services.ot_excel_collaborative_service import OTExcelCollaborativeService
+from services.concreto_excel_service import ConcretoExcelService
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
@@ -610,6 +614,216 @@ async def generar_excel_ot(
     except Exception as e:
         app_logger.error(f"Error generando Excel para orden de trabajo {ot_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
+
+
+# ===== ENDPOINTS PARA CONTROL DE CONCRETO =====
+
+@app.post("/api/concreto/control", response_model=ControlConcretoResponse)
+async def crear_control_concreto(
+    control_data: ControlConcretoCreate,
+    db: Session = Depends(get_db)
+):
+    """Crear un nuevo control de concreto con probetas"""
+    try:
+        app_logger.info(f"Datos recibidos: {control_data}")
+        app_logger.info(f"Probetas recibidas: {control_data.probetas}")
+        # Crear control en base de datos
+        db_control = ControlConcreto(
+            numero_control=control_data.numero_control,
+            codigo_documento=control_data.codigo_documento,
+            version=control_data.version,
+            fecha_documento=control_data.fecha_documento,
+            pagina=control_data.pagina
+        )
+        
+        db.add(db_control)
+        db.flush()  # Para obtener el ID
+        
+        # Crear probetas
+        for probeta_data in control_data.probetas:
+            db_probeta = ProbetaConcreto(
+                control_id=db_control.id,
+                item_numero=probeta_data.item_numero,
+                orden_trabajo=probeta_data.orden_trabajo,
+                codigo_muestra=probeta_data.codigo_muestra,
+                codigo_muestra_cliente=probeta_data.codigo_muestra_cliente,
+                fecha_rotura=probeta_data.fecha_rotura,
+                elemento=probeta_data.elemento,
+                fc_kg_cm2=probeta_data.fc_kg_cm2,
+                status_ensayado=probeta_data.status_ensayado
+            )
+            db.add(db_probeta)
+        
+        db.commit()
+        db.refresh(db_control)
+        
+        app_logger.info(f"Control de concreto creado: {db_control.numero_control}")
+        return db_control
+        
+    except Exception as e:
+        db.rollback()
+        app_logger.error(f"Error creando control de concreto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creando control: {str(e)}")
+
+
+@app.get("/api/concreto/control/{control_id}", response_model=ControlConcretoResponse)
+async def obtener_control_concreto(control_id: int, db: Session = Depends(get_db)):
+    """Obtener un control de concreto por ID"""
+    control = db.query(ControlConcreto).filter(ControlConcreto.id == control_id).first()
+    if not control:
+        raise HTTPException(status_code=404, detail="Control de concreto no encontrado")
+    return control
+
+
+@app.get("/api/concreto/controles", response_model=List[ControlConcretoResponse])
+async def listar_controles_concreto(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Listar todos los controles de concreto"""
+    controles = db.query(ControlConcreto).offset(skip).limit(limit).all()
+    return controles
+
+
+@app.post("/api/concreto/generar-excel/{control_id}")
+async def generar_excel_control_concreto(control_id: int, db: Session = Depends(get_db)):
+    """Generar archivo Excel para un control de concreto"""
+    try:
+        # Obtener control y probetas
+        control = db.query(ControlConcreto).filter(ControlConcreto.id == control_id).first()
+        if not control:
+            raise HTTPException(status_code=404, detail="Control de concreto no encontrado")
+        
+        # Convertir probetas a formato para el servicio
+        probetas_data = []
+        for probeta in control.probetas:
+            probeta_dict = {
+                'item_numero': probeta.item_numero,
+                'orden_trabajo': probeta.orden_trabajo,
+                'codigo_muestra': probeta.codigo_muestra,
+                'codigo_muestra_cliente': probeta.codigo_muestra_cliente,
+                'fecha_rotura': probeta.fecha_rotura,
+                'elemento': probeta.elemento,
+                'fc_kg_cm2': probeta.fc_kg_cm2,
+                'status_ensayado': probeta.status_ensayado
+            }
+            probetas_data.append(probeta_dict)
+        
+        # Datos del cliente para relleno automático
+        datos_cliente = {
+            'codigo_documento': control.codigo_documento,
+            'version': control.version,
+            'fecha_documento': control.fecha_documento,
+            'pagina': control.pagina
+        }
+        
+        # Generar Excel
+        concreto_service = ConcretoExcelService()
+        archivo_path = concreto_service.generar_excel_concreto(probetas_data, datos_cliente)
+        
+        # Actualizar control con ruta del archivo
+        control.archivo_excel = archivo_path
+        db.commit()
+        
+        # Retornar archivo
+        return FileResponse(
+            path=archivo_path,
+            filename=f"control_concreto_{control.numero_control}.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+    except Exception as e:
+        app_logger.error(f"Error generando Excel para control {control_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
+
+
+@app.post("/api/concreto/buscar-recepcion", response_model=BusquedaClienteResponse)
+async def buscar_datos_por_recepcion(request: BusquedaClienteRequest, db: Session = Depends(get_db)):
+    """Buscar datos del cliente y probetas basado en número de recepción"""
+    try:
+        # Buscar la recepción en la base de datos
+        recepcion = db.query(RecepcionMuestra).filter(
+            RecepcionMuestra.numero_recepcion == request.numero_recepcion
+        ).first()
+        
+        if not recepcion:
+            return BusquedaClienteResponse(
+                encontrado=False,
+                datos_cliente=None,
+                probetas=[],
+                mensaje=f"No se encontró la recepción: {request.numero_recepcion}"
+            )
+        
+        # Obtener las muestras de concreto de la recepción
+        muestras = db.query(MuestraConcreto).filter(
+            MuestraConcreto.recepcion_id == recepcion.id
+        ).all()
+        
+        # Convertir muestras a probetas de concreto
+        probetas = []
+        for i, muestra in enumerate(muestras):
+            probeta = ProbetaConcretoBase(
+                item_numero=i + 1,
+                orden_trabajo=recepcion.numero_ot,
+                codigo_muestra=muestra.codigo_muestra_lem or muestra.codigo_muestra,
+                codigo_muestra_cliente=recepcion.cliente,  # Usar nombre del cliente de la recepción
+                fecha_rotura=muestra.fecha_rotura,
+                elemento="",  # Campo elemento - se llena manualmente
+                fc_kg_cm2=muestra.fc_kg_cm2,
+                status_ensayado="PENDIENTE"
+            )
+            probetas.append(probeta)
+        
+        # Datos del cliente
+        datos_cliente = {
+            'orden_trabajo': recepcion.numero_ot,
+            'codigo_documento': 'F-LEM-P-01.09',
+            'version': '04',
+            'fecha_documento': recepcion.fecha_recepcion.strftime('%d/%m/%Y') if recepcion.fecha_recepcion else '',
+            'pagina': '1 de 1',
+            'cliente': recepcion.cliente,
+            'proyecto': recepcion.proyecto,
+            'ubicacion': recepcion.ubicacion,
+            'nota': f"Recepción {recepcion.numero_recepcion}",
+            'status_ensayado': 'PENDIENTE'
+        }
+        
+        return BusquedaClienteResponse(
+            encontrado=True,
+            datos_cliente=datos_cliente,
+            probetas=probetas,
+            mensaje=f"Recepción {request.numero_recepcion} encontrada con {len(probetas)} probetas"
+        )
+            
+    except Exception as e:
+        app_logger.error(f"Error en búsqueda de recepción: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en búsqueda: {str(e)}")
+
+
+@app.delete("/api/concreto/control/{control_id}")
+async def eliminar_control_concreto(control_id: int, db: Session = Depends(get_db)):
+    """Eliminar un control de concreto"""
+    try:
+        control = db.query(ControlConcreto).filter(ControlConcreto.id == control_id).first()
+        if not control:
+            raise HTTPException(status_code=404, detail="Control de concreto no encontrado")
+        
+        # Eliminar archivo Excel si existe
+        if control.archivo_excel and os.path.exists(control.archivo_excel):
+            os.remove(control.archivo_excel)
+        
+        db.delete(control)
+        db.commit()
+        
+        app_logger.info(f"Control de concreto eliminado: {control.numero_control}")
+        return {"mensaje": "Control de concreto eliminado exitosamente"}
+        
+    except Exception as e:
+        db.rollback()
+        app_logger.error(f"Error eliminando control de concreto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error eliminando control: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

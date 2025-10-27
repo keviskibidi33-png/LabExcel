@@ -169,3 +169,54 @@ class ItemOrdenTrabajo(Base):
     
     # Relación con orden de trabajo
     orden_trabajo = relationship("OrdenTrabajo", back_populates="items")
+
+
+# ===== MODELOS PARA CONTROL DE CONCRETO =====
+
+class ControlConcreto(Base):
+    """
+    Modelo principal para control de probetas de concreto
+    """
+    __tablename__ = "control_concreto"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    numero_control = Column(String(50), unique=True, index=True, nullable=False, comment="Número de control")
+    codigo_documento = Column(String(50), nullable=False, default="F-LEM-P-01.09", comment="Código del documento")
+    version = Column(String(10), nullable=False, default="04", comment="Versión del documento")
+    fecha_documento = Column(String(20), nullable=False, comment="Fecha del documento")
+    pagina = Column(String(20), nullable=False, default="1 de 1", comment="Página del documento")
+    
+    # Metadatos
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime(timezone=True), onupdate=func.now(), comment="Fecha de actualización")
+    archivo_excel = Column(String(500), nullable=True, comment="Ruta del archivo Excel generado")
+    
+    # Relación con probetas
+    probetas = relationship("ProbetaConcreto", back_populates="control", cascade="all, delete-orphan")
+
+
+class ProbetaConcreto(Base):
+    """
+    Modelo para probetas individuales de concreto
+    """
+    __tablename__ = "probetas_concreto"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    item_numero = Column(Integer, nullable=False, comment="Número de item")
+    orden_trabajo = Column(String(50), nullable=True, comment="Código de orden de trabajo")
+    codigo_muestra = Column(String(50), nullable=False, comment="Código de la muestra")
+    codigo_muestra_cliente = Column(String(50), nullable=True, comment="Código de muestra del cliente")
+    fecha_rotura = Column(String(20), nullable=True, comment="Fecha de rotura")
+    elemento = Column(String(20), nullable=True, comment="Tipo de elemento")
+    fc_kg_cm2 = Column(Float, nullable=True, comment="Resistencia característica en kg/cm²")
+    status_ensayado = Column(String(50), nullable=False, default="PENDIENTE", comment="Status del ensayo")
+    
+    # Metadatos
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime(timezone=True), onupdate=func.now(), comment="Fecha de actualización")
+    
+    # Relación con control
+    control_id = Column(Integer, ForeignKey("control_concreto.id"), nullable=False, comment="ID del control")
+    control = relationship("ControlConcreto", back_populates="probetas")

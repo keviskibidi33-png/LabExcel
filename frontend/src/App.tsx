@@ -9,6 +9,9 @@ import OrdenForm from './pages/OrdenForm'
 import OTList from './pages/OTList'
 import OTDetail from './pages/OTDetail'
 import OTForm from './pages/OTForm'
+import ControlConcretoList from './pages/ControlConcretoList'
+import ControlConcretoForm from './pages/ControlConcretoForm'
+import ControlConcretoDetail from './pages/ControlConcretoDetail'
 
 function App() {
   return (
@@ -21,6 +24,9 @@ function App() {
         <Route path="/ot" element={<OTList />} />
         <Route path="/ot/:id" element={<OTDetail />} />
         <Route path="/ot/new" element={<OTForm />} />
+        <Route path="/concreto" element={<ControlConcretoList />} />
+        <Route path="/concreto/nuevo" element={<ControlConcretoForm />} />
+        <Route path="/concreto/:id" element={<ControlConcretoDetail />} />
         <Route path="/upload" element={<UploadExcel />} />
         <Route path="/export" element={<ExportExcel />} />
       </Routes>

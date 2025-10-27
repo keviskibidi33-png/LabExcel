@@ -7,7 +7,8 @@ import {
   CloudArrowDownIcon,
   PlusIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
@@ -21,6 +22,8 @@ const navigation = [
   { name: 'Nueva Recepción', href: '/nueva-orden', icon: PlusIcon },
   { name: 'Órdenes de Trabajo', href: '/ot', icon: DocumentTextIcon },
   { name: 'Nueva OT', href: '/ot/new', icon: PlusIcon },
+  { name: 'Control Concreto', href: '/concreto', icon: CubeIcon },
+  { name: 'Nuevo Control', href: '/concreto/nuevo', icon: PlusIcon },
   { name: 'Subir Excel', href: '/upload', icon: CloudArrowUpIcon },
   { name: 'Exportar', href: '/export', icon: CloudArrowDownIcon },
 ]

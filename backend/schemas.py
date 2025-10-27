@@ -3,7 +3,7 @@ Esquemas Pydantic para validación de datos del sistema de recepción de muestra
 """
 
 from pydantic import BaseModel, Field, EmailStr, validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import re
 
@@ -304,3 +304,95 @@ class OrdenTrabajoUpdate(BaseModel):
         if v and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
             raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
         return v
+
+
+# ===== SCHEMAS PARA CONTROL DE CONCRETO =====
+
+class ProbetaConcretoBase(BaseModel):
+    """Esquema base para probetas de concreto"""
+    item_numero: int = Field(..., ge=1, description="Número de item")
+    orden_trabajo: Optional[str] = Field("", max_length=50, description="Código de orden de trabajo")
+    codigo_muestra: str = Field(..., min_length=1, max_length=50, description="Código de la muestra")
+    codigo_muestra_cliente: Optional[str] = Field("", max_length=50, description="Código de muestra del cliente")
+    fecha_rotura: Optional[str] = Field("", description="Fecha de rotura (DD/MM/YYYY)")
+    elemento: Optional[str] = Field("", max_length=20, description="Tipo de elemento (4in x 8in, 6in x 12in, cubos, viga)")
+    fc_kg_cm2: Optional[float] = Field(None, gt=0, description="Resistencia característica en kg/cm²")
+    status_ensayado: str = Field("PENDIENTE", max_length=50, description="Status del ensayo")
+
+    @validator('fecha_rotura')
+    def validate_fecha_rotura(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v
+
+    @validator('elemento')
+    def validate_elemento(cls, v):
+        """Validar tipo de elemento"""
+        if v and v.strip():
+            elementos_validos = ['4in x 8in', '6in x 12in', 'cubos', 'viga']
+            if v not in elementos_validos:
+                raise ValueError(f'Elemento debe ser uno de: {", ".join(elementos_validos)}')
+        return v
+
+    @validator('status_ensayado')
+    def validate_status(cls, v):
+        """Validar status del ensayo"""
+        status_validos = ['PENDIENTE', 'ROTURADO', 'EN PROCESO', 'CANCELADO']
+        if v.upper() not in status_validos:
+            raise ValueError(f'Status debe ser uno de: {", ".join(status_validos)}')
+        return v.upper()
+
+class ProbetaConcretoCreate(ProbetaConcretoBase):
+    """Esquema para crear una probeta de concreto"""
+    pass
+
+class ProbetaConcretoResponse(ProbetaConcretoBase):
+    """Esquema de respuesta para probetas de concreto"""
+    id: int
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class ControlConcretoBase(BaseModel):
+    """Esquema base para control de concreto"""
+    numero_control: str = Field(..., min_length=1, max_length=50, description="Número de control")
+    codigo_documento: str = Field("F-LEM-P-01.09", max_length=50, description="Código del documento")
+    version: str = Field("04", max_length=10, description="Versión del documento")
+    fecha_documento: str = Field(..., description="Fecha del documento (DD/MM/YYYY)")
+    pagina: str = Field("1 de 1", max_length=20, description="Página del documento")
+    probetas: List[ProbetaConcretoBase] = Field(..., min_items=1, description="Lista de probetas")
+
+    @validator('fecha_documento')
+    def validate_fecha_documento(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v
+
+class ControlConcretoCreate(ControlConcretoBase):
+    """Esquema para crear un control de concreto"""
+    pass
+
+class ControlConcretoResponse(ControlConcretoBase):
+    """Esquema de respuesta para control de concreto"""
+    id: int
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    archivo_excel: Optional[str] = Field(None, description="Ruta del archivo Excel generado")
+    
+    class Config:
+        from_attributes = True
+
+class BusquedaClienteRequest(BaseModel):
+    """Esquema para búsqueda de datos del cliente"""
+    numero_recepcion: str = Field(..., min_length=1, description="Número de recepción para búsqueda")
+
+class BusquedaClienteResponse(BaseModel):
+    """Esquema de respuesta para búsqueda de datos del cliente"""
+    encontrado: bool = Field(..., description="Si se encontraron datos del cliente")
+    datos_cliente: Optional[Dict[str, Any]] = Field(None, description="Datos del cliente encontrados")
+    probetas: List[ProbetaConcretoBase] = Field(default=[], description="Probetas de la recepción encontrada")
+    mensaje: str = Field(..., description="Mensaje descriptivo del resultado")
