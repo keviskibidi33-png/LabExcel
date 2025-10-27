@@ -124,8 +124,7 @@ const ControlConcretoForm: React.FC = () => {
         probetas: probetas
       };
 
-      console.log('Datos que se envían al backend:', JSON.stringify(dataToSend, null, 2));
-      console.log('Probetas:', JSON.stringify(probetas, null, 2));
+      // Datos enviados al backend
 
       const response = await api.post('/api/concreto/control', dataToSend);
       
