@@ -131,11 +131,11 @@ const ControlConcretoForm: React.FC = () => {
       
       if (response.data.id) {
         setCreatedControlId(response.data.id);
-        alert(`Control de concreto creado exitosamente (ID: ${response.data.id})`);
+        // Control creado exitosamente - sin modal
       }
     } catch (error) {
       console.error('Error creando control de concreto:', error);
-      alert('Error creando control de concreto');
+      // Error silencioso - se maneja en la UI
     } finally {
       setLoading(false);
     }
@@ -159,10 +159,10 @@ const ControlConcretoForm: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      alert('Excel descargado exitosamente');
+      // Excel descargado exitosamente - sin modal
     } catch (error) {
       console.error('Error descargando Excel:', error);
-      alert('Error descargando Excel');
+      // Error silencioso - se maneja en la UI
     } finally {
       setIsDownloadingExcel(false);
     }
