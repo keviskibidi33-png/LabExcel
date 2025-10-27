@@ -316,6 +316,18 @@ class ExcelCollaborativeService:
                     worksheet['E49'].value = estructura
                     print(f"Estructura {estructura} establecida en E49")
                 
+                # F49: fc_kg_cm2 (280) - CORRECCIÓN ESPECÍFICA
+                fc_value = muestra.get('fc_kg_cm2', '')
+                if fc_value:
+                    worksheet['F49'].value = fc_value
+                    print(f"F49: fc_kg_cm2 {fc_value} establecido correctamente")
+                
+                # G49: fecha_moldeo (27/09/2025) - CORRECCIÓN ESPECÍFICA
+                fecha_moldeo = muestra.get('fecha_moldeo', '')
+                if fecha_moldeo:
+                    worksheet['G49'].value = fecha_moldeo
+                    print(f"G49: fecha_moldeo {fecha_moldeo} establecido correctamente")
+                
                 # Aplicar bordes a toda la fila 49
                 from openpyxl.styles import Border, Side
                 thin_border = Border(
