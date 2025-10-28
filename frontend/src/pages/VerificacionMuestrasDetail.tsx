@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import DeleteModal from '../components/DeleteModal';
 
 interface MuestraVerificada {
   id: number;
@@ -45,6 +46,8 @@ const VerificacionMuestrasDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generandoExcel, setGenerandoExcel] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -121,13 +124,14 @@ const VerificacionMuestrasDetail: React.FC = () => {
     }
   };
 
-  const eliminarVerificacion = async () => {
+  const handleDeleteVerificacion = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteVerificacion = async () => {
     if (!verificacion) return;
 
-    if (!window.confirm('¿Está seguro de que desea eliminar esta verificación?')) {
-      return;
-    }
-
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/verificacion/${verificacion.id}`, {
         method: 'DELETE',
@@ -142,7 +146,13 @@ const VerificacionMuestrasDetail: React.FC = () => {
       }
     } catch (err) {
       alert('Error eliminando verificación');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
   };
 
   if (loading) {
@@ -212,7 +222,7 @@ const VerificacionMuestrasDetail: React.FC = () => {
                 </button>
               )}
               <button
-                onClick={eliminarVerificacion}
+                onClick={handleDeleteVerificacion}
                 className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 Eliminar
@@ -425,6 +435,17 @@ const VerificacionMuestrasDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminación */}
+      <DeleteModal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        onConfirm={confirmDeleteVerificacion}
+        isDeleting={isDeleting}
+        title="¿Eliminar Verificación?"
+        message="Esta acción eliminará permanentemente la verificación seleccionada y todos sus datos asociados."
+        additionalInfo="Se eliminarán también todas las muestras verificadas asociadas a esta verificación."
+      />
     </Layout>
   );
 };

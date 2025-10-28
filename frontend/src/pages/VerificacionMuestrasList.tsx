@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import DeleteModal from '../components/DeleteModal';
 
 interface VerificacionMuestra {
   id: number;
@@ -20,6 +21,9 @@ const VerificacionMuestrasList: React.FC = () => {
   const [verificaciones, setVerificaciones] = useState<VerificacionMuestra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [verificacionToDelete, setVerificacionToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     cargarVerificaciones();
@@ -56,26 +60,39 @@ const VerificacionMuestrasList: React.FC = () => {
     }
   };
 
-  const eliminarVerificacion = async (id: number) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar esta verificación?')) {
-      return;
-    }
+  const handleDeleteVerificacion = (id: number) => {
+    setVerificacionToDelete(id);
+    setShowDeleteModal(true);
+  };
 
+  const confirmDeleteVerificacion = async () => {
+    if (!verificacionToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/verificacion/${id}`, {
+      const response = await fetch(`/api/verificacion/${verificacionToDelete}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        setVerificaciones(prev => prev.filter(v => v.id !== id));
+        setVerificaciones(prev => prev.filter(v => v.id !== verificacionToDelete));
         alert('Verificación eliminada exitosamente');
+        setShowDeleteModal(false);
+        setVerificacionToDelete(null);
       } else {
         const error = await response.json();
         alert(`Error: ${error.detail}`);
       }
     } catch (err) {
       alert('Error eliminando verificación');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setVerificacionToDelete(null);
   };
 
   const generarExcel = async (id: number) => {
@@ -278,7 +295,7 @@ const VerificacionMuestrasList: React.FC = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => eliminarVerificacion(verificacion.id)}
+                        onClick={() => handleDeleteVerificacion(verificacion.id)}
                         className="text-red-600 hover:text-red-900"
                         title="Eliminar"
                       >
@@ -292,6 +309,17 @@ const VerificacionMuestrasList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación para eliminación */}
+      <DeleteModal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        onConfirm={confirmDeleteVerificacion}
+        isDeleting={isDeleting}
+        title="¿Eliminar Verificación?"
+        message="Esta acción eliminará permanentemente la verificación seleccionada y todos sus datos asociados."
+        additionalInfo="Se eliminarán también todas las muestras verificadas asociadas a esta verificación."
+      />
     </div>
   );
 };

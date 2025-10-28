@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import DeleteModal from '../components/DeleteModal';
 
 interface ProbetaConcreto {
   id: number;
@@ -32,6 +33,9 @@ const ControlConcretoList: React.FC = () => {
   const [controles, setControles] = useState<ControlConcreto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [controlToDelete, setControlToDelete] = useState<{id: number, numero: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     cargarControles();
@@ -74,19 +78,32 @@ const ControlConcretoList: React.FC = () => {
     }
   };
 
-  const eliminarControl = async (controlId: number, numeroControl: string) => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar el control ${numeroControl}?`)) {
-      return;
-    }
+  const handleDeleteControl = (controlId: number, numeroControl: string) => {
+    setControlToDelete({id: controlId, numero: numeroControl});
+    setShowDeleteModal(true);
+  };
 
+  const confirmDeleteControl = async () => {
+    if (!controlToDelete) return;
+
+    setIsDeleting(true);
     try {
-      await api.delete(`/api/concreto/control/${controlId}`);
+      await api.delete(`/api/concreto/control/${controlToDelete.id}`);
       alert('Control eliminado exitosamente');
       cargarControles();
+      setShowDeleteModal(false);
+      setControlToDelete(null);
     } catch (error) {
       console.error('Error eliminando control:', error);
       alert('Error eliminando control');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setControlToDelete(null);
   };
 
   const formatearFecha = (fecha: string) => {
@@ -257,7 +274,7 @@ const ControlConcretoList: React.FC = () => {
                           👁️ Ver
                         </button>
                         <button
-                          onClick={() => eliminarControl(control.id, control.numero_control)}
+                          onClick={() => handleDeleteControl(control.id, control.numero_control)}
                           className="text-red-600 hover:text-red-900"
                           title="Eliminar"
                         >
@@ -272,6 +289,17 @@ const ControlConcretoList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación para eliminación */}
+      <DeleteModal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        onConfirm={confirmDeleteControl}
+        isDeleting={isDeleting}
+        title="¿Eliminar Control?"
+        message="Esta acción eliminará permanentemente el control seleccionado y todos sus datos asociados."
+        additionalInfo="Se eliminarán también todas las probetas asociadas a este control."
+      />
     </div>
   );
 };

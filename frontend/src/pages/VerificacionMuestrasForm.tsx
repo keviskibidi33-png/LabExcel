@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import ErrorModal from '../components/ErrorModal';
 
 interface MuestraVerificada {
   item_numero: number;
@@ -62,6 +63,25 @@ const formatearFechaInput = (value: string): string => {
 const VerificacionMuestrasForm: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [createdVerificacionId, setCreatedVerificacionId] = useState<number | null>(null);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  
+  // Estados para el modal de error
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorDetails, setErrorDetails] = useState('');
+  const [errorType, setErrorType] = useState<'error' | 'warning' | 'info'>('error');
+
+  // Función helper para mostrar errores
+  const showError = (title: string, message: string, details?: string, type: 'error' | 'warning' | 'info' = 'error') => {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorDetails(details || '');
+    setErrorType(type);
+    setShowErrorModal(true);
+  };
+
   const [verificacionData, setVerificacionData] = useState<VerificacionData>({
     numero_verificacion: '',
     codigo_documento: 'F-LEM-P',
@@ -156,13 +176,23 @@ const VerificacionMuestrasForm: React.FC = () => {
   // Agregar nueva muestra
   const agregarMuestra = () => {
     if (!nuevaMuestra.codigo_cliente.trim()) {
-      alert('Por favor ingrese el código del cliente');
+      showError(
+        'Campo Requerido',
+        'El código del cliente es obligatorio.',
+        'Por favor ingrese el código del cliente antes de agregar la muestra.',
+        'warning'
+      );
       return;
     }
 
     // Validar que el tipo de testigo esté ingresado
     if (!nuevaMuestra.tipo_testigo.trim()) {
-      alert('Por favor ingrese el tipo de testigo');
+      showError(
+        'Campo Requerido',
+        'El tipo de testigo es obligatorio.',
+        'Por favor ingrese el tipo de testigo (ej: 30x15, 20x10, Diamantin) antes de agregar la muestra.',
+        'warning'
+      );
       return;
     }
 
@@ -237,12 +267,22 @@ const VerificacionMuestrasForm: React.FC = () => {
   // Guardar verificación
   const guardarVerificacion = async () => {
     if (!verificacionData.numero_verificacion.trim()) {
-      alert('Por favor ingrese el número de verificación');
+      showError(
+        'Campo Requerido',
+        'El número de verificación es obligatorio.',
+        'Por favor ingrese un número de verificación antes de continuar.',
+        'warning'
+      );
       return;
     }
 
     if (verificacionData.muestras_verificadas.length === 0) {
-      alert('Por favor agregue al menos una muestra');
+      showError(
+        'Muestras Requeridas',
+        'Debe agregar al menos una muestra antes de guardar.',
+        'Use el formulario de "Agregar Muestra" para añadir muestras a la verificación.',
+        'warning'
+      );
       return;
     }
 
@@ -259,27 +299,98 @@ const VerificacionMuestrasForm: React.FC = () => {
       if (response.ok) {
         try {
           const result = await response.json();
-          alert('Verificación guardada exitosamente');
-          navigate('/verificacion');
+          setCreatedVerificacionId(result.id);
+          // No mostrar modal, solo establecer el ID para mostrar la sección de Excel
         } catch (jsonError) {
           console.log('Respuesta no es JSON válido, pero la operación fue exitosa');
-          alert('Verificación guardada exitosamente');
-          navigate('/verificacion');
+          // No mostrar modal, solo establecer el ID para mostrar la sección de Excel
         }
       } else {
         try {
           const error = await response.json();
-          alert(`Error: ${error.detail || 'Error desconocido'}`);
+          showError(
+            'Error al Guardar Verificación',
+            'No se pudo guardar la verificación en el servidor.',
+            error.detail || 'Error desconocido del servidor. Verifique los datos e intente nuevamente.',
+            'error'
+          );
         } catch (jsonError) {
           const errorText = await response.text();
-          alert(`Error ${response.status}: ${errorText || 'Error desconocido'}`);
+          showError(
+            'Error al Guardar Verificación',
+            'No se pudo guardar la verificación en el servidor.',
+            `Error ${response.status}: ${errorText || 'Error de comunicación con el servidor.'}`,
+            'error'
+          );
         }
       }
     } catch (error) {
       console.error('Error guardando verificación:', error);
-      alert('Error guardando verificación');
+      showError(
+        'Error de Conexión',
+        'No se pudo conectar con el servidor.',
+        `Error: ${error instanceof Error ? error.message : 'Error desconocido'}. Verifique su conexión a internet e intente nuevamente.`,
+        'error'
+      );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateExcel = async () => {
+    if (!createdVerificacionId) return;
+    
+    setIsGeneratingExcel(true);
+    try {
+      // Paso 1: Generar el archivo Excel
+      const generateResponse = await fetch(`/api/verificacion/${createdVerificacionId}/generar-excel`, {
+        method: 'POST',
+      });
+
+      if (!generateResponse.ok) {
+        const error = await generateResponse.json();
+        showError(
+          'Error al Generar Excel',
+          'No se pudo generar el archivo Excel.',
+          error.detail || 'Error desconocido del servidor. Intente nuevamente.',
+          'error'
+        );
+        return;
+      }
+
+      // Paso 2: Descargar el archivo Excel generado
+      const downloadResponse = await fetch(`/api/verificacion/${createdVerificacionId}/descargar-excel`);
+
+      if (downloadResponse.ok) {
+        const blob = await downloadResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `verificacion_${verificacionData.numero_verificacion}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        // No mostrar modal, el usuario puede ver que se descargó el archivo
+      } else {
+        const error = await downloadResponse.json();
+        showError(
+          'Error al Descargar Excel',
+          'El archivo se generó pero no se pudo descargar.',
+          error.detail || 'Error desconocido del servidor. Intente nuevamente.',
+          'error'
+        );
+      }
+    } catch (err) {
+      console.error('Error generando Excel:', err);
+      showError(
+        'Error de Conexión',
+        'No se pudo conectar con el servidor para generar el Excel.',
+        `Error: ${err instanceof Error ? err.message : 'Error desconocido'}. Verifique su conexión e intente nuevamente.`,
+        'error'
+      );
+    } finally {
+      setIsGeneratingExcel(false);
     }
   };
 
@@ -850,6 +961,42 @@ const VerificacionMuestrasForm: React.FC = () => {
           </div>
         )}
 
+        {/* Sección de Excel (solo se muestra después de crear la verificación) */}
+        {createdVerificacionId && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-green-800 mb-3">
+              ✅ Verificación creada exitosamente (ID: {createdVerificacionId})
+            </h3>
+            <div className="flex space-x-4">
+              <button
+                onClick={handleGenerateExcel}
+                disabled={isGeneratingExcel}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingExcel ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    📊 Generar Excel
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => navigate('/verificacion')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                Ver Lista de Verificaciones
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Botones de acción */}
         <div className="flex justify-end space-x-4">
           <button
@@ -858,15 +1005,27 @@ const VerificacionMuestrasForm: React.FC = () => {
           >
             Cancelar
           </button>
-          <button
-            onClick={guardarVerificacion}
-            disabled={loading}
-            className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-          >
-            {loading ? 'Guardando...' : 'Guardar Verificación'}
-          </button>
+          {!createdVerificacionId && (
+            <button
+              onClick={guardarVerificacion}
+              disabled={loading}
+              className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              {loading ? 'Guardando...' : 'Guardar Verificación'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Modal de error */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={errorTitle}
+        message={errorMessage}
+        details={errorDetails}
+        type={errorType}
+      />
     </div>
   );
 };
