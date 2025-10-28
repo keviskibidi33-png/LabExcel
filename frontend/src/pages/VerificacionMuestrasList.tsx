@@ -242,45 +242,48 @@ const VerificacionMuestrasList: React.FC = () => {
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(verificacion.fecha_creacion).toLocaleDateString('es-PE')}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       {verificacion.archivo_excel ? (
-                        <span className="text-green-600">✓ Generado</span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ✅ Generado
+                        </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          ⏳ Pendiente
+                        </span>
                       )}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <Link
-                          to={`/verificacion/${verificacion.id}`}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Ver
-                        </Link>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => generarExcel(verificacion.id)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Generar Excel"
+                      >
+                        📊 Excel
+                      </button>
+                      <button
+                        onClick={() => window.location.href = `/verificacion/${verificacion.id}`}
+                        className="text-green-600 hover:text-green-900"
+                        title="Ver Detalles"
+                      >
+                        👁️ Ver
+                      </button>
+                      {verificacion.archivo_excel && (
                         <button
-                          onClick={() => generarExcel(verificacion.id)}
-                          className="text-green-600 hover:text-green-900"
-                          title="Generar Excel"
+                          onClick={() => descargarExcel(verificacion.id)}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="Descargar Excel"
                         >
-                          Generar Excel
+                          📥 Descargar
                         </button>
-                        {verificacion.archivo_excel && (
-                          <button
-                            onClick={() => descargarExcel(verificacion.id)}
-                            className="text-purple-600 hover:text-purple-900"
-                            title="Descargar Excel"
-                          >
-                            Descargar
-                          </button>
-                        )}
-                        <button
-                          onClick={() => eliminarVerificacion(verificacion.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Eliminar"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => eliminarVerificacion(verificacion.id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Eliminar"
+                      >
+                        🗑️ Eliminar
+                      </button>
                     </td>
                   </tr>
                 ))}
