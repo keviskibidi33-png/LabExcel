@@ -51,11 +51,13 @@ const VerificacionMuestrasForm: React.FC = () => {
     numero_verificacion: '',
     codigo_documento: 'F-LEM-P',
     version: '02',
-    fecha_documento: new Date().toLocaleDateString('es-PE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }),
+    fecha_documento: (() => {
+      const now = new Date();
+      const day = now.getDate().toString().padStart(2, '0');
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear();
+      return `${day}/${month}/${year}`;
+    })(),
     pagina: '1 de 1',
     verificado_por: '',
     fecha_verificacion: '',
