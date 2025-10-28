@@ -44,6 +44,21 @@ const calcularPatronPlanitud = (superior: boolean, inferior: boolean, depresione
   return patrones[clave] || `ERROR: Patrón no reconocido (${clave})`;
 };
 
+// Función para formatear automáticamente fechas con barras
+const formatearFechaInput = (value: string): string => {
+  // Remover todos los caracteres que no sean números
+  const soloNumeros = value.replace(/\D/g, '');
+  
+  // Aplicar formato DD/MM/YYYY
+  if (soloNumeros.length <= 2) {
+    return soloNumeros;
+  } else if (soloNumeros.length <= 4) {
+    return `${soloNumeros.slice(0, 2)}/${soloNumeros.slice(2)}`;
+  } else {
+    return `${soloNumeros.slice(0, 2)}/${soloNumeros.slice(2, 4)}/${soloNumeros.slice(4, 8)}`;
+  }
+};
+
 const VerificacionMuestrasForm: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -316,12 +331,16 @@ const VerificacionMuestrasForm: React.FC = () => {
             <input
               type="text"
               value={verificacionData.fecha_verificacion || ''}
-              onChange={(e) => setVerificacionData(prev => ({
-                ...prev,
-                fecha_verificacion: e.target.value
-              }))}
+              onChange={(e) => {
+                const valorFormateado = formatearFechaInput(e.target.value);
+                setVerificacionData(prev => ({
+                  ...prev,
+                  fecha_verificacion: valorFormateado
+                }));
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="dd/mm/aaaa"
+              maxLength={10}
             />
           </div>
 
