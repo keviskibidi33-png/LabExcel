@@ -32,8 +32,8 @@ class VerificacionExcelService:
         'tipo_testigo': 3,     # C - TIPO DE TESTIGO
         'diametro_1': 4,       # D - Diámetro 1 (mm)
         'diametro_2': 5,       # E - Diámetro 2 (mm)
-        'tolerancia': 6,       # F - ΔΦ >2% (mm)
-        'cumple': 7,           # G - √ o X
+        'tolerancia': 6,       # F - ΔΦ >2% (mm) - Solo muestra ✓/✗
+        'cumple': 7,           # G - √ o X - Mismo checkbox que tolerancia
         'p1': 8,               # H - P1 √ o X
         'p2': 9,               # I - P2 √ o X
         'p3': 10,              # J - P3 √ o X
@@ -603,10 +603,12 @@ class VerificacionExcelService:
         # Diámetros y tolerancia
         self._llenar_celda_segura(ws, row, self.COLUMNS['diametro_1'], muestra.diametro_1_mm or "")
         self._llenar_celda_segura(ws, row, self.COLUMNS['diametro_2'], muestra.diametro_2_mm or "")
-        self._llenar_celda_segura(ws, row, self.COLUMNS['tolerancia'], muestra.tolerancia_porcentaje or "")
         
-        # Cumple tolerancia
+        # Tolerancia: mostrar solo el checkbox, no el valor numérico
         cumple_text = self._formatear_checkbox(muestra.cumple_tolerancia)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['tolerancia'], cumple_text)
+        
+        # Cumple tolerancia (mismo checkbox)
         self._llenar_celda_segura(ws, row, self.COLUMNS['cumple'], cumple_text)
         
         # Perpendicularidad
