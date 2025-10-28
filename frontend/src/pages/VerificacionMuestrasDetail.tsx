@@ -6,9 +6,7 @@ interface MuestraVerificada {
   id: number;
   item_numero: number;
   codigo_cliente: string;
-  tipo_testigo_30x15: boolean;
-  tipo_testigo_20x10: boolean;
-  tipo_testigo_diamantin: boolean;
+  tipo_testigo: string;
   diametro_1_mm?: number;
   diametro_2_mm?: number;
   tolerancia_porcentaje?: number;
@@ -311,11 +309,7 @@ const VerificacionMuestrasDetail: React.FC = () => {
                         {muestra.codigo_cliente}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="space-y-1">
-                          {muestra.tipo_testigo_30x15 && <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">30x15</div>}
-                          {muestra.tipo_testigo_20x10 && <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">20x10</div>}
-                          {muestra.tipo_testigo_diamantin && <div className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Diamantin</div>}
-                        </div>
+                        {muestra.tipo_testigo || '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {muestra.diametro_1_mm || '-'}
