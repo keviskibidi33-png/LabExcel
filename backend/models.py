@@ -263,7 +263,7 @@ class MuestraVerificada(Base):
     # Campos principales
     id = Column(Integer, primary_key=True, index=True)
     item_numero = Column(Integer, nullable=False, comment="Número de item")
-    codigo_cliente = Column(String(50), nullable=False, comment="Código del cliente")
+    codigo_cliente = Column(String(50), nullable=False, comment="Codigo de muestra LEM")
     
     # TIPO DE TESTIGO (MANUAL)
     tipo_testigo = Column(String(50), nullable=True, comment="Tipo de testigo (texto libre)")

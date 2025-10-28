@@ -178,8 +178,8 @@ const VerificacionMuestrasForm: React.FC = () => {
     if (!nuevaMuestra.codigo_cliente.trim()) {
       showError(
         'Campo Requerido',
-        'El código del cliente es obligatorio.',
-        'Por favor ingrese el código del cliente antes de agregar la muestra.',
+        'El codigo de muestra LEM es obligatorio.',
+        'Por favor ingrese el codigo de muestra LEM antes de agregar la muestra.',
         'warning'
       );
       return;
@@ -366,7 +366,10 @@ const VerificacionMuestrasForm: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `verificacion_${verificacionData.numero_verificacion}.xlsx`;
+        // Usar el mismo formato que el backend
+        const cliente_nombre = verificacionData.cliente || "SIN_CLIENTE";
+        const cliente_limpio = cliente_nombre.replace(/[^a-zA-Z0-9\s\-_]/g, '').replace(/\s+/g, '_');
+        link.download = `VERIFICACION CONCRETO - AUTOMATIZADO(${cliente_limpio}).xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -479,7 +482,7 @@ const VerificacionMuestrasForm: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código Cliente *
+                Codigo Muestra LEM *
               </label>
               <input
                 type="text"
@@ -852,7 +855,7 @@ const VerificacionMuestrasForm: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-2 border-b text-left">N°</th>
-                    <th className="px-4 py-2 border-b text-left">Código Cliente</th>
+                    <th className="px-4 py-2 border-b text-left">Codigo Muestra LEM</th>
                     <th className="px-4 py-2 border-b text-left">Tipo Testigo</th>
                     <th className="px-4 py-2 border-b text-left">Diámetro 1</th>
                     <th className="px-4 py-2 border-b text-left">Diámetro 2</th>

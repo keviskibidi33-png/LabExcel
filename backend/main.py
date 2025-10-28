@@ -1007,7 +1007,11 @@ async def descargar_excel_verificacion(verificacion_id: int, db: Session = Depen
         if not verificacion.archivo_excel or not os.path.exists(verificacion.archivo_excel):
             raise HTTPException(status_code=404, detail="Archivo Excel no encontrado")
         
-        filename = f"verificacion_{verificacion.numero_verificacion}.xlsx"
+        # Usar el mismo formato que el servicio de Excel
+        cliente_nombre = verificacion.cliente or "SIN_CLIENTE"
+        cliente_limpio = "".join(c for c in cliente_nombre if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        cliente_limpio = cliente_limpio.replace(' ', '_')
+        filename = f"VERIFICACION CONCRETO - AUTOMATIZADO({cliente_limpio}).xlsx"
         
         return FileResponse(
             path=verificacion.archivo_excel,

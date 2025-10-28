@@ -124,7 +124,9 @@ const VerificacionMuestrasList: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `verificacion_${id}.xlsx`;
+        // Usar el mismo formato que el backend - necesitamos el nombre del cliente
+        // Por ahora usamos el ID, pero idealmente deberíamos obtener el cliente
+        a.download = `VERIFICACION CONCRETO - AUTOMATIZADO(ID_${id}).xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

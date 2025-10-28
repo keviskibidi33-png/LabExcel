@@ -85,7 +85,7 @@ const VerificacionMuestrasDetail: React.FC = () => {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json(); // Solo para consumir la respuesta
         alert('Excel generado exitosamente');
         // Recargar la verificación para actualizar el estado
         cargarVerificacion(verificacion.id);
@@ -111,7 +111,10 @@ const VerificacionMuestrasDetail: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `verificacion_${verificacion.numero_verificacion}.xlsx`;
+        // Usar el mismo formato que el backend
+        const cliente_nombre = verificacion.cliente || "SIN_CLIENTE";
+        const cliente_limpio = cliente_nombre.replace(/[^a-zA-Z0-9\s\-_]/g, '').replace(/\s+/g, '_');
+        a.download = `VERIFICACION CONCRETO - AUTOMATIZADO(${cliente_limpio}).xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -275,7 +278,7 @@ const VerificacionMuestrasDetail: React.FC = () => {
                       N°
                     </th>
                     <th className="px-4 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Código Cliente
+                      Codigo Muestra LEM
                     </th>
                     <th className="px-4 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tipo Testigo

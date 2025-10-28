@@ -28,7 +28,7 @@ class VerificacionExcelService:
     # Mapeo de columnas para el template
     COLUMNS = {
         'numero': 1,           # A - N°
-        'codigo_cliente': 2,   # B - CÓDIGO CLIENTE
+        'codigo_cliente': 2,   # B - CODIGO MUESTRA LEM
         'tipo_testigo': 3,     # C - TIPO DE TESTIGO
         'diametro_1': 4,       # D - Diámetro 1 (mm)
         'diametro_2': 5,       # E - Diámetro 2 (mm)
@@ -68,9 +68,12 @@ class VerificacionExcelService:
             ValueError: Si hay error en la generación del archivo
         """
         try:
-            # Crear archivo de salida con timestamp único
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"verificacion_muestras_{timestamp}.xlsx"
+            # Crear archivo de salida con nombre del cliente
+            cliente_nombre = verificacion.cliente or "SIN_CLIENTE"
+            # Limpiar el nombre del cliente para usar como nombre de archivo
+            cliente_limpio = "".join(c for c in cliente_nombre if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            cliente_limpio = cliente_limpio.replace(' ', '_')
+            filename = f"VERIFICACION CONCRETO - AUTOMATIZADO({cliente_limpio}).xlsx"
             filepath = os.path.join(self.output_dir, filename)
             
             # Copiar el template para preservar formato
@@ -387,7 +390,7 @@ class VerificacionExcelService:
             
             # Encabezados de la tabla
             ws['A8'] = "N°"
-            ws['B8'] = "CÓDIGO CLIENTE"
+            ws['B8'] = "CODIGO MUESTRA LEM"
             ws['C8'] = "TIPO DE TESTIGO"
             ws['D8'] = "DIÁMETRO (MAYOR Y MENOR)"
             ws['E8'] = "PERPENDICULARIDAD (0.5°) o (1 en 100 mm)"
