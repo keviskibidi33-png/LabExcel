@@ -28,7 +28,7 @@ export default function OrdenesList() {
     () => apiService.getOrdenes(),
     {
       onError: (error: any) => {
-        toast.error(`Error cargando órdenes: ${error.message}`)
+        toast.error(`Error cargando recepciones de muestra: ${error.message}`)
       }
     }
   )
@@ -37,19 +37,19 @@ export default function OrdenesList() {
   const deleteOrdenMutation = useMutation(apiService.deleteOrden, {
     onSuccess: () => {
       queryClient.invalidateQueries('ordenes')
-      toast.success('Recepción eliminada exitosamente')
+      toast.success('Recepción de muestra eliminada exitosamente')
       setShowDeleteModal(false)
       setOrdenToDelete(null)
     },
     onError: (error: any) => {
-      toast.error(`Error al eliminar recepción: ${error.message}`)
+      toast.error(`Error al eliminar recepción de muestra: ${error.message}`)
     },
     onSettled: () => {
       setIsDeleting(false)
     }
   })
 
-  // Mutación para eliminar múltiples órdenes
+  // Mutación para eliminar múltiples recepciones
   const deleteMultipleMutation = useMutation(
     async (ids: number[]) => {
       const deletePromises = ids.map(id => apiService.deleteOrden(id))
@@ -107,7 +107,7 @@ export default function OrdenesList() {
     }
   }
 
-  // Función para eliminar múltiples órdenes
+  // Función para eliminar múltiples recepciones
   const handleDeleteMultiple = async () => {
     if (selectedOrdenes.length === 0) return
     setShowDeleteMultipleModal(true)
@@ -164,17 +164,17 @@ export default function OrdenesList() {
       <div className="mb-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Órdenes de Trabajo</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Recepción de Muestra Cilíndricas de Concreto</h1>
             <p className="mt-2 text-gray-600">
-              Gestiona las órdenes de trabajo del laboratorio
+              Gestiona las recepciones de muestra cilíndricas de concreto del laboratorio
             </p>
           </div>
           <Link
-            to="/upload"
+            to="/nueva-orden"
             className="btn-primary flex items-center"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            Nueva Orden
+                      Nueva Recepción de Muestra
           </Link>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function OrdenesList() {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-500">
-              {filteredOrdenes.length} órdenes encontradas
+              {filteredOrdenes.length} recepciones de muestra encontradas
             </span>
             {selectedOrdenes.length > 0 && (
               <>
@@ -229,7 +229,7 @@ export default function OrdenesList() {
         </div>
       </div>
 
-      {/* Lista de órdenes */}
+      {/* Lista de recepciones */}
       <div className="card">
         <div className="overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
@@ -315,22 +315,22 @@ export default function OrdenesList() {
             <div className="text-center py-12">
               <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
-                {searchTerm ? 'No se encontraron órdenes' : 'No hay órdenes'}
+                {searchTerm ? 'No se encontraron recepciones de muestra' : 'No hay recepciones de muestra'}
               </h3>
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm 
                   ? 'Intenta con otros términos de búsqueda'
-                  : 'Comienza creando una nueva orden de trabajo'
+                  : 'Comienza creando una nueva recepción de muestra'
                 }
               </p>
               {!searchTerm && (
                 <div className="mt-6">
                   <Link
-                    to="/upload"
+                    to="/nueva-orden"
                     className="btn-primary"
                   >
                     <PlusIcon className="h-5 w-5 mr-2" />
-                    Crear Primera Orden
+                    Crear Primera Recepción de Muestra
                   </Link>
                 </div>
               )}

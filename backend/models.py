@@ -220,3 +220,82 @@ class ProbetaConcreto(Base):
     # Relación con control
     control_id = Column(Integer, ForeignKey("control_concreto.id"), nullable=False, comment="ID del control")
     control = relationship("ControlConcreto", back_populates="probetas")
+
+
+# ===== MODELOS PARA VERIFICACIÓN DE MUESTRAS CILÍNDRICAS =====
+
+class VerificacionMuestras(Base):
+    """
+    Modelo principal para verificación de muestras cilíndricas de concreto
+    """
+    __tablename__ = "verificacion_muestras"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    numero_verificacion = Column(String(50), unique=True, index=True, nullable=False, comment="Número de verificación")
+    codigo_documento = Column(String(50), nullable=False, default="F-LEM-P", comment="Código del documento")
+    version = Column(String(10), nullable=False, default="02", comment="Versión del documento")
+    fecha_documento = Column(String(20), nullable=False, comment="Fecha del documento")
+    pagina = Column(String(20), nullable=False, default="1 de 1", comment="Página del documento")
+    
+    # Información del verificador
+    verificado_por = Column(String(50), nullable=True, comment="Código del verificador")
+    fecha_verificacion = Column(String(20), nullable=True, comment="Fecha de verificación")
+    
+    # Información del cliente
+    cliente = Column(String(200), nullable=True, comment="Nombre del cliente")
+    
+    # Metadatos
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime(timezone=True), onupdate=func.now(), comment="Fecha de actualización")
+    archivo_excel = Column(String(500), nullable=True, comment="Ruta del archivo Excel generado")
+    
+    # Relación con muestras verificadas
+    muestras_verificadas = relationship("MuestraVerificada", back_populates="verificacion", cascade="all, delete-orphan")
+
+
+class MuestraVerificada(Base):
+    """
+    Modelo para muestras individuales verificadas
+    """
+    __tablename__ = "muestras_verificadas"
+    
+    # Campos principales
+    id = Column(Integer, primary_key=True, index=True)
+    item_numero = Column(Integer, nullable=False, comment="Número de item")
+    codigo_cliente = Column(String(50), nullable=False, comment="Código del cliente")
+    
+    # TIPO DE TESTIGO (MANUAL)
+    tipo_testigo = Column(String(50), nullable=True, comment="Tipo de testigo (texto libre)")
+    
+    # DIÁMETRO (FORMULA)
+    diametro_1_mm = Column(Float, nullable=True, comment="Diámetro 1 en mm")
+    diametro_2_mm = Column(Float, nullable=True, comment="Diámetro 2 en mm")
+    tolerancia_porcentaje = Column(Float, nullable=True, comment="Tolerancia calculada en %")
+    cumple_tolerancia = Column(Boolean, nullable=True, comment="Cumple tolerancia (V/X)")
+    
+    # PERPENDICULARIDAD (MANUAL)
+    perpendicularidad_p1 = Column(Boolean, nullable=True, comment="Perpendicularidad P1 (V/X)")
+    perpendicularidad_p2 = Column(Boolean, nullable=True, comment="Perpendicularidad P2 (V/X)")
+    perpendicularidad_p3 = Column(Boolean, nullable=True, comment="Perpendicularidad P3 (V/X)")
+    perpendicularidad_p4 = Column(Boolean, nullable=True, comment="Perpendicularidad P4 (V/X)")
+    perpendicularidad_cumple = Column(Boolean, nullable=True, comment="Perpendicularidad cumple <0.5° (V/X)")
+    
+    # PLANITUD (PATRON)
+    planitud_superior = Column(Boolean, nullable=True, comment="Planitud superior <0.05mm (V/X)")
+    planitud_inferior = Column(Boolean, nullable=True, comment="Planitud inferior <0.05mm (V/X)")
+    planitud_depresiones = Column(Boolean, nullable=True, comment="Depresiones ≤5mm (V/X)")
+    
+    # ACCIÓN A REALIZAR (PATRON - CALCULADO AUTOMÁTICAMENTE)
+    accion_realizar = Column(String(100), nullable=True, comment="Acción a realizar calculada por patrón")
+    
+    # CONFORMIDAD
+    conformidad_correccion = Column(Boolean, nullable=True, comment="Conformidad corrección realizada (V/X)")
+    
+    # Metadatos
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")
+    fecha_actualizacion = Column(DateTime(timezone=True), onupdate=func.now(), comment="Fecha de actualización")
+    
+    # Relación con verificación
+    verificacion_id = Column(Integer, ForeignKey("verificacion_muestras.id"), nullable=False, comment="ID de la verificación")
+    verificacion = relationship("VerificacionMuestras", back_populates="muestras_verificadas")

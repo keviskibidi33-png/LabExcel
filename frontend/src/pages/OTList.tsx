@@ -85,7 +85,7 @@ const OTList: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <div className="text-red-600 text-lg">Error al cargar las órdenes de trabajo</div>
+        <div className="text-red-600 text-lg">Error al cargar las recepciones de muestra</div>
         <div className="text-gray-600 mt-2">Por favor, intente nuevamente</div>
       </div>
     );
@@ -94,7 +94,7 @@ const OTList: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Órdenes de Trabajo</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Orden de Trabajo</h1>
         <Link
           to="/ot/new"
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
@@ -123,7 +123,7 @@ const OTList: React.FC = () => {
                     N° OT
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    N° Recepción
+                    N° Origen
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado

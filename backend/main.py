@@ -22,12 +22,16 @@ from utils.validators import DataValidator
 
 # Base de datos y modelos
 from database import get_db, engine
-from models import Base, RecepcionMuestra, MuestraConcreto, OrdenTrabajo, ItemOrdenTrabajo, ControlConcreto, ProbetaConcreto
+from models import Base, RecepcionMuestra, MuestraConcreto, OrdenTrabajo, ItemOrdenTrabajo, ControlConcreto, ProbetaConcreto, VerificacionMuestras, MuestraVerificada
 from schemas import (
     RecepcionMuestraCreate, RecepcionMuestraResponse, MuestraConcretoCreate,
     OrdenTrabajoCreate, OrdenTrabajoResponse, OrdenTrabajoUpdate,
     ControlConcretoCreate, ControlConcretoResponse, ProbetaConcretoCreate, ProbetaConcretoBase,
-    BusquedaClienteRequest, BusquedaClienteResponse
+    BusquedaClienteRequest, BusquedaClienteResponse,
+    VerificacionMuestrasCreate, VerificacionMuestrasResponse, VerificacionMuestrasUpdate,
+    MuestraVerificadaCreate, MuestraVerificadaResponse,
+    CalculoFormulaRequest, CalculoFormulaResponse,
+    CalculoPatronRequest, CalculoPatronResponse
 )
 
 # Servicios
@@ -37,6 +41,8 @@ from services.ot_service import OTService
 from services.excel_collaborative_service import ExcelCollaborativeService
 from services.ot_excel_collaborative_service import OTExcelCollaborativeService
 from services.concreto_excel_service import ConcretoExcelService
+from services.verificacion_service import VerificacionService
+from services.verificacion_excel_service import VerificacionExcelService
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
@@ -823,6 +829,197 @@ async def eliminar_control_concreto(control_id: int, db: Session = Depends(get_d
         db.rollback()
         app_logger.error(f"Error eliminando control de concreto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error eliminando control: {str(e)}")
+
+
+# ===== RUTAS PARA VERIFICACIÓN DE MUESTRAS CILÍNDRICAS =====
+
+@app.post("/api/verificacion/calcular-formula", response_model=CalculoFormulaResponse)
+async def calcular_formula_diametros(request: CalculoFormulaRequest):
+    """Calcular fórmula de tolerancia de diámetros"""
+    try:
+        # Crear una sesión temporal para el servicio
+        db = next(get_db())
+        verificacion_service = VerificacionService(db)
+        
+        result = verificacion_service.calcular_formula_diametros(request)
+        db.close()
+        
+        return result
+        
+    except Exception as e:
+        app_logger.error(f"Error calculando fórmula: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en cálculo: {str(e)}")
+
+
+@app.post("/api/verificacion/calcular-patron", response_model=CalculoPatronResponse)
+async def calcular_patron_accion(request: CalculoPatronRequest):
+    """Calcular patrón de acción a realizar"""
+    try:
+        # Crear una sesión temporal para el servicio
+        db = next(get_db())
+        verificacion_service = VerificacionService(db)
+        
+        result = verificacion_service.calcular_patron_accion(request)
+        db.close()
+        
+        return result
+        
+    except Exception as e:
+        app_logger.error(f"Error calculando patrón: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en cálculo: {str(e)}")
+
+
+@app.post("/api/verificacion/", response_model=VerificacionMuestrasResponse)
+async def crear_verificacion(verificacion_data: VerificacionMuestrasCreate, db: Session = Depends(get_db)):
+    """Crear una nueva verificación de muestras cilíndricas"""
+    try:
+        verificacion_service = VerificacionService(db)
+        verificacion = verificacion_service.crear_verificacion(verificacion_data)
+        
+        app_logger.info(f"Verificación creada: {verificacion.numero_verificacion}")
+        return verificacion
+        
+    except Exception as e:
+        app_logger.error(f"Error creando verificación: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creando verificación: {str(e)}")
+
+
+@app.get("/api/verificacion/", response_model=List[VerificacionMuestrasResponse])
+async def listar_verificaciones(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Listar todas las verificaciones de muestras"""
+    try:
+        verificacion_service = VerificacionService(db)
+        verificaciones = verificacion_service.listar_verificaciones(skip=skip, limit=limit)
+        
+        return verificaciones
+        
+    except Exception as e:
+        app_logger.error(f"Error listando verificaciones: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listando verificaciones: {str(e)}")
+
+
+@app.get("/api/verificacion/{verificacion_id}", response_model=VerificacionMuestrasResponse)
+async def obtener_verificacion(verificacion_id: int, db: Session = Depends(get_db)):
+    """Obtener una verificación por ID"""
+    try:
+        verificacion_service = VerificacionService(db)
+        verificacion = verificacion_service.obtener_verificacion(verificacion_id)
+        
+        if not verificacion:
+            raise HTTPException(status_code=404, detail="Verificación no encontrada")
+        
+        return verificacion
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error obteniendo verificación: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error obteniendo verificación: {str(e)}")
+
+
+@app.put("/api/verificacion/{verificacion_id}", response_model=VerificacionMuestrasResponse)
+async def actualizar_verificacion(verificacion_id: int, update_data: VerificacionMuestrasUpdate, db: Session = Depends(get_db)):
+    """Actualizar una verificación existente"""
+    try:
+        verificacion_service = VerificacionService(db)
+        
+        # Convertir Pydantic model a dict, excluyendo valores None
+        update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
+        
+        verificacion = verificacion_service.actualizar_verificacion(verificacion_id, update_dict)
+        
+        if not verificacion:
+            raise HTTPException(status_code=404, detail="Verificación no encontrada")
+        
+        app_logger.info(f"Verificación actualizada: {verificacion.numero_verificacion}")
+        return verificacion
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error actualizando verificación: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error actualizando verificación: {str(e)}")
+
+
+@app.delete("/api/verificacion/{verificacion_id}")
+async def eliminar_verificacion(verificacion_id: int, db: Session = Depends(get_db)):
+    """Eliminar una verificación"""
+    try:
+        verificacion_service = VerificacionService(db)
+        success = verificacion_service.eliminar_verificacion(verificacion_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Verificación no encontrada")
+        
+        app_logger.info(f"Verificación eliminada: {verificacion_id}")
+        return {"mensaje": "Verificación eliminada exitosamente"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error eliminando verificación: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error eliminando verificación: {str(e)}")
+
+
+@app.post("/api/verificacion/{verificacion_id}/generar-excel")
+async def generar_excel_verificacion(verificacion_id: int, db: Session = Depends(get_db)):
+    """Generar archivo Excel para una verificación"""
+    try:
+        verificacion_service = VerificacionService(db)
+        verificacion = verificacion_service.obtener_verificacion(verificacion_id)
+        
+        if not verificacion:
+            raise HTTPException(status_code=404, detail="Verificación no encontrada")
+        
+        # Generar Excel
+        excel_service = VerificacionExcelService()
+        filepath = excel_service.generar_excel_verificacion(verificacion)
+        
+        # Actualizar la ruta en la base de datos
+        verificacion.archivo_excel = filepath
+        db.commit()
+        
+        app_logger.info(f"Excel generado para verificación {verificacion_id}: {filepath}")
+        
+        return {
+            "mensaje": "Archivo Excel generado exitosamente",
+            "archivo": filepath,
+            "verificacion_id": verificacion_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error generando Excel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
+
+
+@app.get("/api/verificacion/{verificacion_id}/descargar-excel")
+async def descargar_excel_verificacion(verificacion_id: int, db: Session = Depends(get_db)):
+    """Descargar archivo Excel de una verificación"""
+    try:
+        verificacion_service = VerificacionService(db)
+        verificacion = verificacion_service.obtener_verificacion(verificacion_id)
+        
+        if not verificacion:
+            raise HTTPException(status_code=404, detail="Verificación no encontrada")
+        
+        if not verificacion.archivo_excel or not os.path.exists(verificacion.archivo_excel):
+            raise HTTPException(status_code=404, detail="Archivo Excel no encontrado")
+        
+        filename = f"verificacion_{verificacion.numero_verificacion}.xlsx"
+        
+        return FileResponse(
+            path=verificacion.archivo_excel,
+            filename=filename,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        app_logger.error(f"Error descargando Excel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error descargando Excel: {str(e)}")
 
 
 if __name__ == "__main__":

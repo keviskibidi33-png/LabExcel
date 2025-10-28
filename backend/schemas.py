@@ -396,3 +396,127 @@ class BusquedaClienteResponse(BaseModel):
     datos_cliente: Optional[Dict[str, Any]] = Field(None, description="Datos del cliente encontrados")
     probetas: List[ProbetaConcretoBase] = Field(default=[], description="Probetas de la recepción encontrada")
     mensaje: str = Field(..., description="Mensaje descriptivo del resultado")
+
+
+# ===== SCHEMAS PARA VERIFICACIÓN DE MUESTRAS CILÍNDRICAS =====
+
+class MuestraVerificadaBase(BaseModel):
+    """Esquema base para muestras verificadas"""
+    item_numero: int = Field(..., ge=1, description="Número de item")
+    codigo_cliente: str = Field(..., min_length=1, max_length=50, description="Código del cliente")
+    
+    # TIPO DE TESTIGO (MANUAL)
+    tipo_testigo: str = Field("", max_length=50, description="Tipo de testigo (texto libre)")
+    
+    # DIÁMETRO (FORMULA)
+    diametro_1_mm: Optional[float] = Field(None, gt=0, description="Diámetro 1 en mm")
+    diametro_2_mm: Optional[float] = Field(None, gt=0, description="Diámetro 2 en mm")
+    
+    # PERPENDICULARIDAD (MANUAL)
+    perpendicularidad_p1: Optional[bool] = Field(None, description="Perpendicularidad P1 (V/X)")
+    perpendicularidad_p2: Optional[bool] = Field(None, description="Perpendicularidad P2 (V/X)")
+    perpendicularidad_p3: Optional[bool] = Field(None, description="Perpendicularidad P3 (V/X)")
+    perpendicularidad_p4: Optional[bool] = Field(None, description="Perpendicularidad P4 (V/X)")
+    perpendicularidad_cumple: Optional[bool] = Field(None, description="Perpendicularidad cumple <0.5° (V/X)")
+    
+    # PLANITUD (PATRON)
+    planitud_superior: Optional[bool] = Field(None, description="Planitud superior <0.05mm (V/X)")
+    planitud_inferior: Optional[bool] = Field(None, description="Planitud inferior <0.05mm (V/X)")
+    planitud_depresiones: Optional[bool] = Field(None, description="Depresiones ≤5mm (V/X)")
+    
+    # CONFORMIDAD
+    conformidad_correccion: Optional[bool] = Field(None, description="Conformidad corrección realizada (V/X)")
+
+
+class MuestraVerificadaCreate(MuestraVerificadaBase):
+    """Esquema para crear una muestra verificada"""
+    pass
+
+class MuestraVerificadaResponse(MuestraVerificadaBase):
+    """Esquema de respuesta para muestras verificadas"""
+    id: int
+    tolerancia_porcentaje: Optional[float] = Field(None, description="Tolerancia calculada en %")
+    cumple_tolerancia: Optional[bool] = Field(None, description="Cumple tolerancia (V/X)")
+    accion_realizar: Optional[str] = Field(None, description="Acción a realizar calculada por patrón")
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class VerificacionMuestrasBase(BaseModel):
+    """Esquema base para verificación de muestras"""
+    numero_verificacion: str = Field(..., min_length=1, max_length=50, description="Número de verificación")
+    codigo_documento: str = Field("F-LEM-P", max_length=50, description="Código del documento")
+    version: str = Field("02", max_length=10, description="Versión del documento")
+    fecha_documento: str = Field(..., description="Fecha del documento (DD/MM/YYYY)")
+    pagina: str = Field("1 de 1", max_length=20, description="Página del documento")
+    
+    # Información del verificador
+    verificado_por: Optional[str] = Field(None, max_length=50, description="Código del verificador")
+    fecha_verificacion: Optional[str] = Field(None, description="Fecha de verificación (DD/MM/YYYY)")
+    
+    # Información del cliente
+    cliente: Optional[str] = Field(None, max_length=200, description="Nombre del cliente")
+    
+    # Lista de muestras verificadas
+    muestras_verificadas: List[MuestraVerificadaBase] = Field(..., min_items=1, description="Lista de muestras verificadas")
+
+    @validator('fecha_documento', 'fecha_verificacion')
+    def validate_date_format(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v
+
+class VerificacionMuestrasCreate(VerificacionMuestrasBase):
+    """Esquema para crear una verificación de muestras"""
+    pass
+
+class VerificacionMuestrasResponse(VerificacionMuestrasBase):
+    """Esquema de respuesta para verificación de muestras"""
+    id: int
+    fecha_creacion: datetime
+    fecha_actualizacion: Optional[datetime] = None
+    archivo_excel: Optional[str] = Field(None, description="Ruta del archivo Excel generado")
+    muestras_verificadas: List[MuestraVerificadaResponse] = Field(default=[], description="Lista de muestras verificadas")
+    
+    class Config:
+        from_attributes = True
+
+class VerificacionMuestrasUpdate(BaseModel):
+    """Esquema para actualizar una verificación de muestras"""
+    verificado_por: Optional[str] = None
+    fecha_verificacion: Optional[str] = None
+    cliente: Optional[str] = None
+    estado: Optional[str] = None
+
+    @validator('fecha_verificacion')
+    def validate_date_format(cls, v):
+        """Validar formato de fecha DD/MM/YYYY"""
+        if v and v.strip() and not re.match(r'^\d{2}/\d{2}/\d{4}$', v):
+            raise ValueError('La fecha debe estar en formato DD/MM/YYYY')
+        return v
+
+class CalculoFormulaRequest(BaseModel):
+    """Esquema para solicitar cálculo de fórmula de diámetros"""
+    diametro_1_mm: float = Field(..., gt=0, description="Diámetro 1 en mm")
+    diametro_2_mm: float = Field(..., gt=0, description="Diámetro 2 en mm")
+    tipo_testigo: str = Field(..., description="Tipo de testigo (30x15 o 20x10)")
+
+class CalculoFormulaResponse(BaseModel):
+    """Esquema de respuesta para cálculo de fórmula de diámetros"""
+    tolerancia_porcentaje: float = Field(..., description="Tolerancia calculada en %")
+    cumple_tolerancia: bool = Field(..., description="Cumple tolerancia (V/X)")
+    mensaje: str = Field(..., description="Mensaje descriptivo del resultado")
+
+class CalculoPatronRequest(BaseModel):
+    """Esquema para solicitar cálculo de patrón de acción"""
+    planitud_superior: bool = Field(..., description="Planitud superior <0.05mm (V/X)")
+    planitud_inferior: bool = Field(..., description="Planitud inferior <0.05mm (V/X)")
+    planitud_depresiones: bool = Field(..., description="Depresiones ≤5mm (V/X)")
+
+class CalculoPatronResponse(BaseModel):
+    """Esquema de respuesta para cálculo de patrón de acción"""
+    accion_realizar: str = Field(..., description="Acción a realizar calculada por patrón")
+    mensaje: str = Field(..., description="Mensaje descriptivo del resultado")

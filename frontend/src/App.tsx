@@ -12,6 +12,9 @@ import OTForm from './pages/OTForm'
 import ControlConcretoList from './pages/ControlConcretoList'
 import ControlConcretoForm from './pages/ControlConcretoForm'
 import ControlConcretoDetail from './pages/ControlConcretoDetail'
+import VerificacionMuestrasList from './pages/VerificacionMuestrasList'
+import VerificacionMuestrasForm from './pages/VerificacionMuestrasForm'
+import VerificacionMuestrasDetail from './pages/VerificacionMuestrasDetail'
 
 function App() {
   return (
@@ -27,6 +30,9 @@ function App() {
         <Route path="/concreto" element={<ControlConcretoList />} />
         <Route path="/concreto/nuevo" element={<ControlConcretoForm />} />
         <Route path="/concreto/:id" element={<ControlConcretoDetail />} />
+        <Route path="/verificacion" element={<VerificacionMuestrasList />} />
+        <Route path="/verificacion/nueva" element={<VerificacionMuestrasForm />} />
+        <Route path="/verificacion/:id" element={<VerificacionMuestrasDetail />} />
         <Route path="/upload" element={<UploadExcel />} />
         <Route path="/export" element={<ExportExcel />} />
       </Routes>
