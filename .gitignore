@@ -97,6 +97,9 @@ archivos/
 backend/output/
 *.xlsx
 !backend/templates/**/*.xlsx
+# Archivos temporales de Excel (cuando el archivo está abierto)
+~$*.xlsx
+~$*.xls
 
 # Scripts de migración (ya ejecutados, mantener para referencia)
 # backend/migrate_*.py
