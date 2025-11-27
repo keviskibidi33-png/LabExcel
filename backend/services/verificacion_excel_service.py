@@ -25,29 +25,43 @@ class VerificacionExcelService:
     respetando el formato y estructura del documento original.
     """
     
-    # Mapeo de columnas para el template
+    # Mapeo de columnas para el template V03
+    # Orden exacto según especificación del usuario (sin celdas fusionadas):
+    # PLANITUD: C.SUPERIOR (M), C.INFERIOR (N), DEPRESIONES (O)
+    # ACCION A REALIZAR (P), CONFORMIDAD (Q)
+    # LONGITUD 1 (R), LONGITUD 2 (S), LONGITUD 3 (T)
+    # MASA MUESTRA AIRE (U), PESAR/NO PESAR (V)
     COLUMNS = {
-        'numero': 1,           # A - N°
-        'codigo_cliente': 2,   # B - CÓDIGO CLIENTE
-        'tipo_testigo': 3,     # C - TIPO DE TESTIGO
-        'diametro_1': 4,       # D - Diámetro 1 (mm)
-        'diametro_2': 5,       # E - Diámetro 2 (mm)
-        'tolerancia': 6,       # F - ΔΦ >2% (mm) - Solo muestra ✓/✗
-        'cumple': 7,           # G - √ o X - Mismo checkbox que tolerancia
-        'p1': 8,               # H - P1 √ o X
-        'p2': 9,               # I - P2 √ o X
-        'p3': 10,              # J - P3 √ o X
-        'p4': 11,              # K - P4 √ o X
-        'medida': 12,          # L - MEDIDA <0.5°
-        'superior': 13,        # M - C. SUPERIOR (fusionada M+N)
-        'inferior': 15,        # O - C. INFERIOR (fusionada O+P)
-        'depresiones': 17,     # Q - Depresiones ≤5mm
-        'accion': 18,          # R - ACCIÓN A REALIZAR (fusionada R+S)
-        'conformidad': 20      # T - Conformidad
+        'numero': 1,                    # A - N°
+        'codigo_lem': 2,                # B - Código LEM
+        'tipo_testigo': 3,              # C - TIPO DE TESTIGO
+        'diametro_1': 4,                # D - Diámetro 1 (mm)
+        'diametro_2': 5,                # E - Diámetro 2 (mm)
+        'tolerancia_porcentaje': 6,     # F - ΔΦ 2%>
+        'aceptacion_diametro': 7,       # G - Aceptación
+        # PERPENDICULARIDAD (5 columnas)
+        'perpendicularidad_sup1': 8,    # H - SUP 1 Aceptacion
+        'perpendicularidad_sup2': 9,    # I - SUP 2 Aceptacion
+        'perpendicularidad_inf1': 10,   # J - INF 1 Aceptacion
+        'perpendicularidad_inf2': 11,   # K - INF 2 Aceptacion
+        'perpendicularidad_medida': 12, # L - MEDIDA < 0.5°
+        # PLANITUD (sin fusionar)
+        'planitud_superior': 13,        # M - C. SUPERIOR < 0.05 mm Aceptacion
+        'planitud_inferior': 14,        # N - C. INFERIOR < 0.05 mm Aceptacion
+        'planitud_depresiones': 15,     # O - Depresiones ≤ 5 mm Aceptacion
+        'accion': 16,                   # P - ACCIÓN A REALIZAR
+        'conformidad': 17,              # Q - Conformidad
+        # LONGITUD (3 columnas)
+        'longitud_1': 18,               # R - Longitud 1 (mm)
+        'longitud_2': 19,               # S - Longitud 2 (mm)
+        'longitud_3': 20,               # T - Longitud 3 (mm)
+        'masa': 21,                     # U - Masa muestra aire (g) - dígitos
+        'pesar': 22                    # V - Pesar / No pesar
     }
     
     def __init__(self):
         """Inicializa el servicio con las rutas de template y salida."""
+        # Nuevo template V03 - Archivo xlsx en la raíz de templates
         self.template_path = "templates/VERIFICACION CONCRETO - AUTOMATIZADO.xlsx"
         self.output_dir = "backend/output"
         
@@ -315,23 +329,67 @@ class VerificacionExcelService:
             ws.cell(row=row, column=19).alignment = self.align_center
             ws.cell(row=row, column=19).border = self.border_thin
     
+    def _llenar_equipos_y_nota(self, ws, verificacion: VerificacionMuestras):
+        """
+        Llena la fila de equipos (fila 18) y nota (fila 19) según el template.
+        
+        Fila 18: B18="Código equipo", C18="Bernier", D18=código, E18="Lainas 1", F18=código, etc.
+        Fila 19: A19="Nota", B19-S19=nota (línea horizontal)
+        """
+        # Fila 18: Equipos
+        row_equipos = 18
+        # B18: "Código equipo"
+        ws.cell(row=row_equipos, column=2, value="Código equipo").font = self.font_normal
+        ws.cell(row=row_equipos, column=2).border = self.border_thin
+        
+        # Equipos y códigos (C18-L18)
+        equipos = [
+            ("Bernier", verificacion.equipo_bernier),
+            ("Lainas 1", verificacion.equipo_lainas_1),
+            ("Lainas 2", verificacion.equipo_lainas_2),
+            ("Escuadra", verificacion.equipo_escuadra),
+            ("Balanza", verificacion.equipo_balanza)
+        ]
+        
+        col = 3  # Empezar en C
+        for nombre, codigo in equipos:
+            # Nombre del equipo
+            ws.cell(row=row_equipos, column=col, value=nombre).font = self.font_normal
+            ws.cell(row=row_equipos, column=col).alignment = self.align_center
+            ws.cell(row=row_equipos, column=col).border = self.border_thin
+            col += 1
+            
+            # Código del equipo
+            ws.cell(row=row_equipos, column=col, value=codigo or "").font = self.font_normal
+            ws.cell(row=row_equipos, column=col).alignment = self.align_center
+            ws.cell(row=row_equipos, column=col).border = self.border_thin
+            col += 1
+        
+        # Fila 19: Nota
+        row_nota = 19
+        # A19: "Nota"
+        ws.cell(row=row_nota, column=1, value="Nota").font = self.font_normal
+        
+        # B19-S19: Línea horizontal para la nota (si hay nota, llenar desde B hasta S)
+        if verificacion.nota:
+            # Llenar la nota desde B hasta S (columnas 2-19)
+            nota_celdas = verificacion.nota[:200]  # Limitar longitud
+            ws.cell(row=row_nota, column=2, value=nota_celdas).font = self.font_normal
+            # Fusionar celdas B19-S19 para la línea
+            try:
+                ws.merge_cells(f'B{row_nota}:S{row_nota}')
+            except:
+                pass  # Si ya está fusionado, ignorar
+    
     def _generar_pie_pagina(self, ws):
         """Genera el pie de página del documento"""
         # Obtener la última fila con datos
         last_row = ws.max_row
         
-        # Nota
-        ws.cell(row=last_row + 2, column=1, value="Nota").font = self.font_normal
-        
-        # Información de contacto
-        contact_info = [
-            "com.pe / Correo: laboratorio@geofal.com.pe",
-            "Av. Marañon N°763 Los Olivos, Lima",
-            "Teléfono: 01-7543070"
-        ]
-        
-        for i, info in enumerate(contact_info, last_row + 3):
-            ws.cell(row=i, column=1, value=info).font = self.font_small
+        # Información de contacto (fila 21 según la imagen)
+        contact_info = "Web: www.geofal.com.pe / Correo: laboratorio@geofal.com.pe / Av. Marañon N°763 Los Olivos, Lima / Teléfono: 01-7543070"
+        ws.cell(row=21, column=4, value=contact_info).font = self.font_small
+        ws.cell(row=21, column=4).alignment = self.align_center
     
     def _ajustar_columnas(self, ws):
         """Ajusta el ancho de las columnas"""
@@ -528,11 +586,17 @@ class VerificacionExcelService:
             verificacion: Objeto VerificacionMuestras con los datos
         """
         try:
+            # Configurar estilos primero
+            self._configurar_estilos(ws)
+            
             # Llenar información general
             self._llenar_informacion_general(ws, verificacion)
             
             # Llenar datos de las muestras desde la fila 12
             self._llenar_datos_muestras(ws, verificacion)
+            
+            # Llenar equipos y nota (filas 18 y 19)
+            self._llenar_equipos_y_nota(ws, verificacion)
             
             logger.info(f"Datos llenados exitosamente: {len(verificacion.muestras_verificadas)} muestras")
             
@@ -587,7 +651,7 @@ class VerificacionExcelService:
     
     def _llenar_fila_muestra(self, ws, row: int, numero: int, muestra: MuestraVerificada):
         """
-        Llena una fila individual con los datos de una muestra.
+        Llena una fila individual con los datos de una muestra - Formato V03.
         
         Args:
             ws: Worksheet de openpyxl
@@ -597,50 +661,76 @@ class VerificacionExcelService:
         """
         # Datos básicos
         self._llenar_celda_segura(ws, row, self.COLUMNS['numero'], numero)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['codigo_cliente'], muestra.codigo_cliente or "")
+        # Usar codigo_lem si existe, sino codigo_cliente (compatibilidad)
+        codigo = getattr(muestra, 'codigo_lem', None) or getattr(muestra, 'codigo_cliente', None) or ""
+        self._llenar_celda_segura(ws, row, self.COLUMNS['codigo_lem'], codigo)
         self._llenar_celda_segura(ws, row, self.COLUMNS['tipo_testigo'], muestra.tipo_testigo or "")
         
-        # Diámetros y tolerancia
+        # DIÁMETRO
         self._llenar_celda_segura(ws, row, self.COLUMNS['diametro_1'], muestra.diametro_1_mm or "")
         self._llenar_celda_segura(ws, row, self.COLUMNS['diametro_2'], muestra.diametro_2_mm or "")
+        # Tolerancia porcentaje (ΔΦ 2%>)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['tolerancia_porcentaje'], 
+                                  f"{muestra.tolerancia_porcentaje:.2f}%" if muestra.tolerancia_porcentaje else "")
+        # Aceptación diámetro
+        aceptacion = getattr(muestra, 'aceptacion_diametro', None) or \
+                    ("Cumple" if getattr(muestra, 'cumple_tolerancia', None) else 
+                     "No cumple" if getattr(muestra, 'cumple_tolerancia', None) is False else "")
+        self._llenar_celda_segura(ws, row, self.COLUMNS['aceptacion_diametro'], aceptacion)
         
-        # Tolerancia: mostrar solo el checkbox, no el valor numérico
-        cumple_text = self._formatear_checkbox(muestra.cumple_tolerancia)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['tolerancia'], cumple_text)
+        # PERPENDICULARIDAD (SUP 1, SUP 2, INF 1, INF 2, MEDIDA < 0.5°)
+        perp_sup1 = getattr(muestra, 'perpendicularidad_sup1', None) or getattr(muestra, 'perpendicularidad_p1', None)
+        perp_sup2 = getattr(muestra, 'perpendicularidad_sup2', None) or getattr(muestra, 'perpendicularidad_p2', None)
+        perp_inf1 = getattr(muestra, 'perpendicularidad_inf1', None) or getattr(muestra, 'perpendicularidad_p3', None)
+        perp_inf2 = getattr(muestra, 'perpendicularidad_inf2', None) or getattr(muestra, 'perpendicularidad_p4', None)
+        perp_medida = getattr(muestra, 'perpendicularidad_medida', None) or getattr(muestra, 'perpendicularidad_cumple', None)
         
-        # Cumple tolerancia (mismo checkbox)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['cumple'], cumple_text)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['perpendicularidad_sup1'], 
+                                  self._formatear_aceptacion(perp_sup1))
+        self._llenar_celda_segura(ws, row, self.COLUMNS['perpendicularidad_sup2'], 
+                                  self._formatear_aceptacion(perp_sup2))
+        self._llenar_celda_segura(ws, row, self.COLUMNS['perpendicularidad_inf1'], 
+                                  self._formatear_aceptacion(perp_inf1))
+        self._llenar_celda_segura(ws, row, self.COLUMNS['perpendicularidad_inf2'], 
+                                  self._formatear_aceptacion(perp_inf2))
+        # MEDIDA < 0.5° está en PERPENDICULARIDAD (columna L)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['perpendicularidad_medida'], 
+                                  self._formatear_aceptacion(perp_medida))
         
-        # Perpendicularidad
-        perp_values = [
-            muestra.perpendicularidad_p1,
-            muestra.perpendicularidad_p2,
-            muestra.perpendicularidad_p3,
-            muestra.perpendicularidad_p4
-        ]
-        for i, p in enumerate(perp_values):
-            col = self.COLUMNS[f'p{i+1}']
-            p_text = self._formatear_checkbox(p)
-            self._llenar_celda_segura(ws, row, col, p_text)
+        # PLANITUD (sin fusionar: M, N, O)
+        planitud_sup = getattr(muestra, 'planitud_superior_aceptacion', None) or \
+                      (self._formatear_aceptacion(getattr(muestra, 'planitud_superior', None)))
+        planitud_inf = getattr(muestra, 'planitud_inferior_aceptacion', None) or \
+                      (self._formatear_aceptacion(getattr(muestra, 'planitud_inferior', None)))
+        planitud_dep = getattr(muestra, 'planitud_depresiones_aceptacion', None) or \
+                      (self._formatear_aceptacion(getattr(muestra, 'planitud_depresiones', None)))
         
-        # MEDIDA <0.5°
-        medida_text = self._formatear_checkbox(muestra.perpendicularidad_cumple)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['medida'], medida_text)
+        # C.SUPERIOR (M)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['planitud_superior'], planitud_sup)
+        # C.INFERIOR (N)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['planitud_inferior'], planitud_inf)
+        # DEPRESIONES (O)
+        self._llenar_celda_segura(ws, row, self.COLUMNS['planitud_depresiones'], planitud_dep)
         
-        # Planitud
-        superior_text = self._formatear_checkbox(muestra.planitud_superior)
-        inferior_text = self._formatear_checkbox(muestra.planitud_inferior)
-        depresiones_text = self._formatear_checkbox(muestra.planitud_depresiones)
-        
-        self._llenar_celda_segura(ws, row, self.COLUMNS['superior'], superior_text)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['inferior'], inferior_text)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['depresiones'], depresiones_text)
-        
-        # Acción y conformidad
+        # ACCIÓN A REALIZAR (P)
         self._llenar_celda_segura(ws, row, self.COLUMNS['accion'], muestra.accion_realizar or "")
         
-        conf_text = self._formatear_checkbox(muestra.conformidad_correccion)
-        self._llenar_celda_segura(ws, row, self.COLUMNS['conformidad'], conf_text)
+        # CONFORMIDAD (Q)
+        conformidad = getattr(muestra, 'conformidad', None) or \
+                     (self._formatear_checkbox(getattr(muestra, 'conformidad_correccion', None)))
+        self._llenar_celda_segura(ws, row, self.COLUMNS['conformidad'], conformidad)
+        
+        # LONGITUD (L/D ≤1.75) - R, S, T
+        self._llenar_celda_segura(ws, row, self.COLUMNS['longitud_1'], muestra.longitud_1_mm or "")
+        self._llenar_celda_segura(ws, row, self.COLUMNS['longitud_2'], muestra.longitud_2_mm or "")
+        self._llenar_celda_segura(ws, row, self.COLUMNS['longitud_3'], muestra.longitud_3_mm or "")
+        
+        # MASA MUESTRA AIRE (U) - dígitos
+        self._llenar_celda_segura(ws, row, self.COLUMNS['masa'], muestra.masa_muestra_aire_g or "")
+        
+        # PESAR / NO PESAR (V)
+        pesar = getattr(muestra, 'pesar', None) or ""
+        self._llenar_celda_segura(ws, row, self.COLUMNS['pesar'], pesar)
     
     def _llenar_celda_segura(self, ws, row: int, col: int, valor):
         """
@@ -672,5 +762,24 @@ class VerificacionExcelService:
             return "✓"
         elif valor is False:
             return "✗"
+        else:
+            return ""
+    
+    def _formatear_aceptacion(self, valor) -> str:
+        """
+        Convierte un valor booleano en formato de aceptación (Cumple/No cumple).
+        
+        Args:
+            valor: Valor booleano o string (puede ser None)
+            
+        Returns:
+            str: "Cumple" si True, "No cumple" si False, valor original si es string, "" si None
+        """
+        if isinstance(valor, str):
+            return valor
+        elif valor is True:
+            return "Cumple"
+        elif valor is False:
+            return "No cumple"
         else:
             return ""

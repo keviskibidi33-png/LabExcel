@@ -233,8 +233,8 @@ class VerificacionMuestras(Base):
     # Campos principales
     id = Column(Integer, primary_key=True, index=True)
     numero_verificacion = Column(String(50), unique=True, index=True, nullable=False, comment="Número de verificación")
-    codigo_documento = Column(String(50), nullable=False, default="F-LEM-P", comment="Código del documento")
-    version = Column(String(10), nullable=False, default="02", comment="Versión del documento")
+    codigo_documento = Column(String(50), nullable=False, default="F-LEM-P-01.12", comment="Código del documento")
+    version = Column(String(10), nullable=False, default="03", comment="Versión del documento")
     fecha_documento = Column(String(20), nullable=False, comment="Fecha del documento")
     pagina = Column(String(20), nullable=False, default="1 de 1", comment="Página del documento")
     
@@ -244,6 +244,16 @@ class VerificacionMuestras(Base):
     
     # Información del cliente
     cliente = Column(String(200), nullable=True, comment="Nombre del cliente")
+    
+    # Equipos utilizados (fila 18 en Excel)
+    equipo_bernier = Column(String(50), nullable=True, comment="Código equipo Bernier")
+    equipo_lainas_1 = Column(String(50), nullable=True, comment="Código equipo Lainas 1")
+    equipo_lainas_2 = Column(String(50), nullable=True, comment="Código equipo Lainas 2")
+    equipo_escuadra = Column(String(50), nullable=True, comment="Código equipo Escuadra")
+    equipo_balanza = Column(String(50), nullable=True, comment="Código equipo Balanza")
+    
+    # Nota (fila 19 en Excel)
+    nota = Column(String(500), nullable=True, comment="Nota adicional")
     
     # Metadatos
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")
@@ -256,41 +266,64 @@ class VerificacionMuestras(Base):
 
 class MuestraVerificada(Base):
     """
-    Modelo para muestras individuales verificadas
+    Modelo para muestras individuales verificadas - Formato V03
     """
     __tablename__ = "muestras_verificadas"
     
     # Campos principales
     id = Column(Integer, primary_key=True, index=True)
     item_numero = Column(Integer, nullable=False, comment="Número de item")
-    codigo_cliente = Column(String(50), nullable=False, comment="Código del cliente")
+    codigo_lem = Column(String(50), nullable=True, comment="Código LEM de la muestra")
     
     # TIPO DE TESTIGO (MANUAL)
-    tipo_testigo = Column(String(50), nullable=True, comment="Tipo de testigo (texto libre)")
+    tipo_testigo = Column(String(50), nullable=True, comment="Tipo de testigo (4in x 8in, 6in x 12in, Diamantina)")
     
     # DIÁMETRO (FORMULA)
     diametro_1_mm = Column(Float, nullable=True, comment="Diámetro 1 en mm")
     diametro_2_mm = Column(Float, nullable=True, comment="Diámetro 2 en mm")
-    tolerancia_porcentaje = Column(Float, nullable=True, comment="Tolerancia calculada en %")
-    cumple_tolerancia = Column(Boolean, nullable=True, comment="Cumple tolerancia (V/X)")
+    tolerancia_porcentaje = Column(Float, nullable=True, comment="ΔΦ 2%> - Tolerancia calculada en %")
+    aceptacion_diametro = Column(String(20), nullable=True, comment="Aceptación diámetro (Cumple/No cumple)")
     
-    # PERPENDICULARIDAD (MANUAL)
-    perpendicularidad_p1 = Column(Boolean, nullable=True, comment="Perpendicularidad P1 (V/X)")
-    perpendicularidad_p2 = Column(Boolean, nullable=True, comment="Perpendicularidad P2 (V/X)")
-    perpendicularidad_p3 = Column(Boolean, nullable=True, comment="Perpendicularidad P3 (V/X)")
-    perpendicularidad_p4 = Column(Boolean, nullable=True, comment="Perpendicularidad P4 (V/X)")
-    perpendicularidad_cumple = Column(Boolean, nullable=True, comment="Perpendicularidad cumple <0.5° (V/X)")
+    # PERPENDICULARIDAD (4inx8in < 2mm) o (6inx12in < 3mm)
+    perpendicularidad_sup1 = Column(Boolean, nullable=True, comment="SUP 1 Aceptacion (V/X)")
+    perpendicularidad_sup2 = Column(Boolean, nullable=True, comment="SUP 2 Aceptacion (V/X)")
+    perpendicularidad_inf1 = Column(Boolean, nullable=True, comment="INF 1 Aceptacion (V/X)")
+    perpendicularidad_inf2 = Column(Boolean, nullable=True, comment="INF 2 Aceptacion (V/X)")
+    perpendicularidad_medida = Column(Boolean, nullable=True, comment="MEDIDA < 0.5* (V/X)")
     
-    # PLANITUD (PATRON)
-    planitud_superior = Column(Boolean, nullable=True, comment="Planitud superior <0.05mm (V/X)")
-    planitud_inferior = Column(Boolean, nullable=True, comment="Planitud inferior <0.05mm (V/X)")
-    planitud_depresiones = Column(Boolean, nullable=True, comment="Depresiones ≤5mm (V/X)")
+    # PLANITUD
+    planitud_medida = Column(Boolean, nullable=True, comment="MEDIDA < 0.5* (V/X)")
+    planitud_superior_aceptacion = Column(String(20), nullable=True, comment="C. SUPERIOR < 0.05 mm Aceptacion (Cumple/No cumple)")
+    planitud_inferior_aceptacion = Column(String(20), nullable=True, comment="C. INFERIOR < 0.05 mm Aceptacion (Cumple/No cumple)")
+    planitud_depresiones_aceptacion = Column(String(20), nullable=True, comment="Depresiones ≤ 5 mm Aceptacion (Cumple/No cumple)")
     
     # ACCIÓN A REALIZAR (PATRON - CALCULADO AUTOMÁTICAMENTE)
-    accion_realizar = Column(String(100), nullable=True, comment="Acción a realizar calculada por patrón")
+    accion_realizar = Column(String(200), nullable=True, comment="Acción a realizar calculada por patrón")
     
     # CONFORMIDAD
-    conformidad_correccion = Column(Boolean, nullable=True, comment="Conformidad corrección realizada (V/X)")
+    conformidad = Column(String(50), nullable=True, comment="Conformidad (Ensayar, etc.)")
+    
+    # LONGITUD (L/D ≤1.75)
+    longitud_1_mm = Column(Float, nullable=True, comment="Longitud 1 en mm")
+    longitud_2_mm = Column(Float, nullable=True, comment="Longitud 2 en mm")
+    longitud_3_mm = Column(Float, nullable=True, comment="Longitud 3 en mm")
+    
+    # MASA
+    masa_muestra_aire_g = Column(Float, nullable=True, comment="Masa muestra aire en gramos")
+    pesar = Column(String(20), nullable=True, comment="Pesar / No pesar")
+    
+    # Campos legacy para compatibilidad (se mantienen pero se marcan como deprecated)
+    codigo_cliente = Column(String(50), nullable=True, comment="[DEPRECATED] Usar codigo_lem")
+    perpendicularidad_p1 = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar perpendicularidad_sup1")
+    perpendicularidad_p2 = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar perpendicularidad_sup2")
+    perpendicularidad_p3 = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar perpendicularidad_inf1")
+    perpendicularidad_p4 = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar perpendicularidad_inf2")
+    perpendicularidad_cumple = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar perpendicularidad_medida")
+    planitud_superior = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar planitud_superior_aceptacion")
+    planitud_inferior = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar planitud_inferior_aceptacion")
+    planitud_depresiones = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar planitud_depresiones_aceptacion")
+    cumple_tolerancia = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar aceptacion_diametro")
+    conformidad_correccion = Column(Boolean, nullable=True, comment="[DEPRECATED] Usar conformidad")
     
     # Metadatos
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), comment="Fecha de creación")

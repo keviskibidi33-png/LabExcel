@@ -52,6 +52,9 @@ class VerificacionService:
             
             mensaje = f"Tolerancia calculada: {tolerancia_porcentaje:.2f}% - {'CUMPLE' if cumple else 'NO CUMPLE'}"
             
+            # Determinar aceptación como texto
+            aceptacion = "Cumple" if cumple else "No cumple"
+            
             return CalculoFormulaResponse(
                 tolerancia_porcentaje=round(tolerancia_porcentaje, 2),
                 cumple_tolerancia=cumple,
@@ -74,9 +77,15 @@ class VerificacionService:
         - NO CUMPLE + NO CUMPLE + NO CUMPLE → "CAPEO"
         """
         try:
-            planitud_superior = request.planitud_superior
-            planitud_inferior = request.planitud_inferior
-            planitud_depresiones = request.planitud_depresiones
+            # Convertir a booleanos si vienen como strings
+            def convertir_a_bool(valor):
+                if isinstance(valor, str):
+                    return valor.lower() in ['cumple', 'true', '1', 'yes', 'sí']
+                return bool(valor) if valor is not None else False
+            
+            planitud_superior = convertir_a_bool(request.planitud_superior)
+            planitud_inferior = convertir_a_bool(request.planitud_inferior)
+            planitud_depresiones = convertir_a_bool(request.planitud_depresiones)
             
             # Función para calcular patrón de planitud
             def calcular_patron_planitud(superior: bool, inferior: bool, depresiones: bool) -> str:
@@ -116,7 +125,13 @@ class VerificacionService:
                 pagina=verificacion_data.pagina,
                 verificado_por=verificacion_data.verificado_por,
                 fecha_verificacion=verificacion_data.fecha_verificacion,
-                cliente=verificacion_data.cliente
+                cliente=verificacion_data.cliente,
+                equipo_bernier=getattr(verificacion_data, 'equipo_bernier', None),
+                equipo_lainas_1=getattr(verificacion_data, 'equipo_lainas_1', None),
+                equipo_lainas_2=getattr(verificacion_data, 'equipo_lainas_2', None),
+                equipo_escuadra=getattr(verificacion_data, 'equipo_escuadra', None),
+                equipo_balanza=getattr(verificacion_data, 'equipo_balanza', None),
+                nota=getattr(verificacion_data, 'nota', None)
             )
             
             self.db.add(db_verificacion)
@@ -148,38 +163,108 @@ class VerificacionService:
                 
                 # Calcular patrón de acción si se tienen todos los datos de planitud
                 accion_realizar = None
-                if (muestra_data.planitud_superior is not None and 
-                    muestra_data.planitud_inferior is not None and 
-                    muestra_data.planitud_depresiones is not None):
+                # Obtener valores de planitud (nuevos o legacy)
+                planitud_sup_val = getattr(muestra_data, 'planitud_superior_aceptacion', None)
+                planitud_inf_val = getattr(muestra_data, 'planitud_inferior_aceptacion', None)
+                planitud_dep_val = getattr(muestra_data, 'planitud_depresiones_aceptacion', None)
+                
+                # Si no hay aceptaciones como texto, usar booleanos legacy
+                if not planitud_sup_val:
+                    planitud_sup_val = muestra_data.planitud_superior
+                if not planitud_inf_val:
+                    planitud_inf_val = muestra_data.planitud_inferior
+                if not planitud_dep_val:
+                    planitud_dep_val = muestra_data.planitud_depresiones
+                
+                if (planitud_sup_val is not None and 
+                    planitud_inf_val is not None and 
+                    planitud_dep_val is not None):
                     
                     patron_request = CalculoPatronRequest(
-                        planitud_superior=muestra_data.planitud_superior,
-                        planitud_inferior=muestra_data.planitud_inferior,
-                        planitud_depresiones=muestra_data.planitud_depresiones
+                        planitud_superior=planitud_sup_val,
+                        planitud_inferior=planitud_inf_val,
+                        planitud_depresiones=planitud_dep_val
                     )
                     
                     patron_result = self.calcular_patron_accion(patron_request)
                     accion_realizar = patron_result.accion_realizar
                 
-                # Crear la muestra verificada
+                # Obtener código LEM (nuevo) o código cliente (legacy)
+                codigo_lem = getattr(muestra_data, 'codigo_lem', None) or getattr(muestra_data, 'codigo_cliente', None) or ""
+                
+                # Calcular aceptación de diámetro
+                aceptacion_diametro = "Cumple" if cumple_tolerancia else "No cumple" if cumple_tolerancia is False else None
+                
+                # Obtener valores de perpendicularidad (nuevos o legacy)
+                perp_sup1 = getattr(muestra_data, 'perpendicularidad_sup1', None) or getattr(muestra_data, 'perpendicularidad_p1', None)
+                perp_sup2 = getattr(muestra_data, 'perpendicularidad_sup2', None) or getattr(muestra_data, 'perpendicularidad_p2', None)
+                perp_inf1 = getattr(muestra_data, 'perpendicularidad_inf1', None) or getattr(muestra_data, 'perpendicularidad_p3', None)
+                perp_inf2 = getattr(muestra_data, 'perpendicularidad_inf2', None) or getattr(muestra_data, 'perpendicularidad_p4', None)
+                perp_medida = getattr(muestra_data, 'perpendicularidad_medida', None) or getattr(muestra_data, 'perpendicularidad_cumple', None)
+                
+                # Obtener valores de planitud (nuevos o legacy)
+                planitud_medida = getattr(muestra_data, 'planitud_medida', None)
+                planitud_sup_acept = getattr(muestra_data, 'planitud_superior_aceptacion', None)
+                planitud_inf_acept = getattr(muestra_data, 'planitud_inferior_aceptacion', None)
+                planitud_dep_acept = getattr(muestra_data, 'planitud_depresiones_aceptacion', None)
+                
+                # Si no hay aceptaciones como texto, convertir de booleanos
+                if not planitud_sup_acept and muestra_data.planitud_superior is not None:
+                    planitud_sup_acept = "Cumple" if muestra_data.planitud_superior else "No cumple"
+                if not planitud_inf_acept and muestra_data.planitud_inferior is not None:
+                    planitud_inf_acept = "Cumple" if muestra_data.planitud_inferior else "No cumple"
+                if not planitud_dep_acept and muestra_data.planitud_depresiones is not None:
+                    planitud_dep_acept = "Cumple" if muestra_data.planitud_depresiones else "No cumple"
+                
+                # Obtener conformidad (nuevo texto o legacy booleano)
+                conformidad = getattr(muestra_data, 'conformidad', None)
+                if not conformidad and getattr(muestra_data, 'conformidad_correccion', None) is not None:
+                    conformidad = "Ensayar" if muestra_data.conformidad_correccion else ""
+                
+                # Obtener longitudes, masa y pesar
+                longitud_1 = getattr(muestra_data, 'longitud_1_mm', None)
+                longitud_2 = getattr(muestra_data, 'longitud_2_mm', None)
+                longitud_3 = getattr(muestra_data, 'longitud_3_mm', None)
+                masa = getattr(muestra_data, 'masa_muestra_aire_g', None)
+                pesar = getattr(muestra_data, 'pesar', None)
+                
+                # Crear la muestra verificada con nuevos campos
                 db_muestra = MuestraVerificada(
                     verificacion_id=db_verificacion.id,
                     item_numero=muestra_data.item_numero,
-                    codigo_cliente=muestra_data.codigo_cliente,
+                    codigo_lem=codigo_lem,
                     tipo_testigo=muestra_data.tipo_testigo,
                     diametro_1_mm=muestra_data.diametro_1_mm,
                     diametro_2_mm=muestra_data.diametro_2_mm,
                     tolerancia_porcentaje=tolerancia_porcentaje,
+                    aceptacion_diametro=aceptacion_diametro,
+                    perpendicularidad_sup1=perp_sup1,
+                    perpendicularidad_sup2=perp_sup2,
+                    perpendicularidad_inf1=perp_inf1,
+                    perpendicularidad_inf2=perp_inf2,
+                    perpendicularidad_medida=perp_medida,
+                    planitud_medida=planitud_medida,
+                    planitud_superior_aceptacion=planitud_sup_acept,
+                    planitud_inferior_aceptacion=planitud_inf_acept,
+                    planitud_depresiones_aceptacion=planitud_dep_acept,
+                    accion_realizar=accion_realizar,
+                    conformidad=conformidad,
+                    longitud_1_mm=longitud_1,
+                    longitud_2_mm=longitud_2,
+                    longitud_3_mm=longitud_3,
+                    masa_muestra_aire_g=masa,
+                    pesar=pesar,
+                    # Campos legacy para compatibilidad
+                    codigo_cliente=codigo_lem,
                     cumple_tolerancia=cumple_tolerancia,
-                    perpendicularidad_p1=muestra_data.perpendicularidad_p1,
-                    perpendicularidad_p2=muestra_data.perpendicularidad_p2,
-                    perpendicularidad_p3=muestra_data.perpendicularidad_p3,
-                    perpendicularidad_p4=muestra_data.perpendicularidad_p4,
-                    perpendicularidad_cumple=muestra_data.perpendicularidad_cumple,
+                    perpendicularidad_p1=perp_sup1,
+                    perpendicularidad_p2=perp_sup2,
+                    perpendicularidad_p3=perp_inf1,
+                    perpendicularidad_p4=perp_inf2,
+                    perpendicularidad_cumple=perp_medida,
                     planitud_superior=muestra_data.planitud_superior,
                     planitud_inferior=muestra_data.planitud_inferior,
                     planitud_depresiones=muestra_data.planitud_depresiones,
-                    accion_realizar=accion_realizar,
                     conformidad_correccion=muestra_data.conformidad_correccion
                 )
                 

@@ -92,3 +92,15 @@ image/
 
 # Archivos de ejemplo
 archivos/
+
+# Archivos generados
+backend/output/
+*.xlsx
+!backend/templates/**/*.xlsx
+
+# Scripts de migración (ya ejecutados, mantener para referencia)
+# backend/migrate_*.py
+
+# Configuración local de ngrok
+ngrok.yml
+*ngrok*.ps1

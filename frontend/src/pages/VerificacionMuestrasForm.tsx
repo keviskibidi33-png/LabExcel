@@ -1,13 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
 
 interface MuestraVerificada {
   item_numero: number;
-  codigo_cliente: string;
+  codigo_lem: string;  // Nuevo: Código LEM
   tipo_testigo: string;
   diametro_1_mm?: number;
   diametro_2_mm?: number;
+  tolerancia_porcentaje?: number;
+  aceptacion_diametro?: string;  // Nuevo: "Cumple" o "No cumple"
+  // Perpendicularidad - Nuevo formato
+  perpendicularidad_sup1?: boolean;
+  perpendicularidad_sup2?: boolean;
+  perpendicularidad_inf1?: boolean;
+  perpendicularidad_inf2?: boolean;
+  perpendicularidad_medida?: boolean;
+  // Planitud - Nuevo formato
+  planitud_medida?: boolean;
+  planitud_superior_aceptacion?: string;  // "Cumple" o "No cumple"
+  planitud_inferior_aceptacion?: string;
+  planitud_depresiones_aceptacion?: string;
+  accion_realizar?: string;
+  conformidad?: string;  // Nuevo: texto (ej: "Ensayar")
+  // Longitud (L/D ≤1.75) - Nuevo
+  longitud_1_mm?: number;
+  longitud_2_mm?: number;
+  longitud_3_mm?: number;
+  // Masa - Nuevo
+  masa_muestra_aire_g?: number;
+  pesar?: string;  // Pesar / No pesar
+  // Campos legacy para compatibilidad
+  codigo_cliente?: string;
   perpendicularidad_p1?: boolean;
   perpendicularidad_p2?: boolean;
   perpendicularidad_p3?: boolean;
@@ -28,6 +51,12 @@ interface VerificacionData {
   verificado_por?: string;
   fecha_verificacion?: string;
   cliente?: string;
+  equipo_bernier?: string;
+  equipo_lainas_1?: string;
+  equipo_lainas_2?: string;
+  equipo_escuadra?: string;
+  equipo_balanza?: string;
+  nota?: string;
   muestras_verificadas: MuestraVerificada[];
 }
 
@@ -42,6 +71,39 @@ const calcularPatronPlanitud = (superior: boolean, inferior: boolean, depresione
     'NNN': 'CAPEO'                        // NO CUMPLE + NO CUMPLE + NO CUMPLE
   };
   return patrones[clave] || `ERROR: Patrón no reconocido (${clave})`;
+};
+
+// Constantes
+const DENSIDAD_CONCRETO = 1.4544; // g/cm³ - Valor que produce ~2000 g (coincide con Excel original)
+const RATIO_LD_LIMITE = 1.75; // L/D ≤ 1.75 → "Pesar"
+
+// Función para calcular Masa muestra aire, L/D y actualizar automáticamente "pesar"
+const calcularMasaYLDYActualizarPesar = (muestra: MuestraVerificada) => {
+  if (!muestra.diametro_1_mm || !muestra.diametro_2_mm) return;
+  
+  const diametroPromedioMm = (muestra.diametro_1_mm + muestra.diametro_2_mm) / 2;
+  const longitudes = [
+    muestra.longitud_1_mm,
+    muestra.longitud_2_mm,
+    muestra.longitud_3_mm
+  ].filter((l): l is number => l !== undefined && l !== null);
+  
+  if (longitudes.length === 0) return;
+  
+  const longitudPromedioMm = longitudes.reduce((sum, l) => sum + l, 0) / longitudes.length;
+  const ratioLD = longitudPromedioMm / diametroPromedioMm;
+  
+  // L/D ≤ 1.75 → "Pesar", L/D > 1.75 → "No pesar"
+  muestra.pesar = ratioLD <= RATIO_LD_LIMITE ? "Pesar" : "No pesar";
+  
+  // Calcular masa: Masa = Densidad × Volumen, donde Volumen = π × r² × h
+  const diametroPromedioCm = diametroPromedioMm / 10;
+  const longitudPromedioCm = longitudPromedioMm / 10;
+  const radioCm = diametroPromedioCm / 2;
+  const volumenCm3 = Math.PI * Math.pow(radioCm, 2) * longitudPromedioCm;
+  const masaGramos = DENSIDAD_CONCRETO * volumenCm3;
+  
+  muestra.masa_muestra_aire_g = Math.round(masaGramos);
 };
 
 // Función para formatear automáticamente fechas con barras
@@ -64,8 +126,8 @@ const VerificacionMuestrasForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [verificacionData, setVerificacionData] = useState<VerificacionData>({
     numero_verificacion: '',
-    codigo_documento: 'F-LEM-P',
-    version: '02',
+    codigo_documento: 'F-LEM-P-01.12',
+    version: '03',
     fecha_documento: (() => {
       const now = new Date();
       const day = now.getDate().toString().padStart(2, '0');
@@ -77,162 +139,60 @@ const VerificacionMuestrasForm: React.FC = () => {
     verificado_por: '',
     fecha_verificacion: '',
     cliente: '',
+    equipo_bernier: '',
+    equipo_lainas_1: '',
+    equipo_lainas_2: '',
+    equipo_escuadra: '',
+    equipo_balanza: '',
+    nota: '',
     muestras_verificadas: []
   });
 
-  const [nuevaMuestra, setNuevaMuestra] = useState<MuestraVerificada>({
-    item_numero: 1,
-    codigo_cliente: '',
+  // Función helper para crear una nueva muestra vacía
+  const crearMuestraVacia = (itemNumero: number): MuestraVerificada => ({
+    item_numero: itemNumero,
+    codigo_lem: '',
     tipo_testigo: '',
     diametro_1_mm: undefined,
     diametro_2_mm: undefined,
-    perpendicularidad_p1: undefined,
-    perpendicularidad_p2: undefined,
-    perpendicularidad_p3: undefined,
-    perpendicularidad_p4: undefined,
-    perpendicularidad_cumple: undefined,
-    planitud_superior: undefined,
-    planitud_inferior: undefined,
-    planitud_depresiones: undefined,
-    conformidad_correccion: undefined
+    perpendicularidad_sup1: undefined,
+    perpendicularidad_sup2: undefined,
+    perpendicularidad_inf1: undefined,
+    perpendicularidad_inf2: undefined,
+    perpendicularidad_medida: undefined,
+    planitud_medida: undefined,
+    planitud_superior_aceptacion: undefined,
+    planitud_inferior_aceptacion: undefined,
+    planitud_depresiones_aceptacion: undefined,
+    conformidad: undefined,
+    longitud_1_mm: undefined,
+    longitud_2_mm: undefined,
+    longitud_3_mm: undefined,
+    masa_muestra_aire_g: undefined,
+    pesar: undefined
   });
 
-  const [calculos, setCalculos] = useState<{[key: number]: {
-    tolerancia_porcentaje?: number;
-    cumple_tolerancia?: boolean;
-    accion_realizar?: string;
-  }}>({});
-
-  // Calcular fórmula de diámetros
-  const calcularFormula = async (diametro1: number, diametro2: number, tipoTestigo: string) => {
-    try {
-      const response = await fetch('/api/verificacion/calcular-formula', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          diametro_1_mm: diametro1,
-          diametro_2_mm: diametro2,
-          tipo_testigo: tipoTestigo
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        return result;
-      }
-    } catch (error) {
-      console.error('Error calculando fórmula:', error);
+  // Función helper para actualizar una muestra en el array
+  const actualizarMuestra = (index: number, actualizacion: Partial<MuestraVerificada>) => {
+    const nuevasMuestras = [...verificacionData.muestras_verificadas];
+    const muestraActualizada = { ...nuevasMuestras[index], ...actualizacion };
+    
+    // Recalcular masa y L/D si cambian diámetros o longitudes
+    if (actualizacion.diametro_1_mm !== undefined || 
+        actualizacion.diametro_2_mm !== undefined ||
+        actualizacion.longitud_1_mm !== undefined ||
+        actualizacion.longitud_2_mm !== undefined ||
+        actualizacion.longitud_3_mm !== undefined) {
+      calcularMasaYLDYActualizarPesar(muestraActualizada);
     }
-    return null;
-  };
-
-  // Calcular patrón de acción
-  const calcularPatron = async (planitudSuperior: boolean, planitudInferior: boolean, planitudDepresiones: boolean) => {
-    try {
-      const response = await fetch('/api/verificacion/calcular-patron', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          planitud_superior: planitudSuperior,
-          planitud_inferior: planitudInferior,
-          planitud_depresiones: planitudDepresiones
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        return result;
-      }
-    } catch (error) {
-      console.error('Error calculando patrón:', error);
-    }
-    return null;
-  };
-
-  // Agregar nueva muestra
-  const agregarMuestra = () => {
-    if (!nuevaMuestra.codigo_cliente.trim()) {
-      alert('Por favor ingrese el código del cliente');
-      return;
-    }
-
-    // Validar que el tipo de testigo esté ingresado
-    if (!nuevaMuestra.tipo_testigo.trim()) {
-      alert('Por favor ingrese el tipo de testigo');
-      return;
-    }
-
-    const muestra = {
-      ...nuevaMuestra,
-      item_numero: verificacionData.muestras_verificadas.length + 1
-    };
-
+    
+    nuevasMuestras[index] = muestraActualizada;
     setVerificacionData(prev => ({
       ...prev,
-      muestras_verificadas: [...prev.muestras_verificadas, muestra]
-    }));
-
-    // Calcular fórmulas y patrones localmente
-    if (muestra.diametro_1_mm && muestra.diametro_2_mm) {
-      // Calcular tolerancia localmente
-      const diferencia = Math.abs(muestra.diametro_1_mm - muestra.diametro_2_mm);
-      const toleranciaPorcentaje = (diferencia / muestra.diametro_1_mm) * 100;
-      const cumpleTolerancia = toleranciaPorcentaje <= 2.0;
-      
-
-      // Calcular patrón si tenemos todos los datos de planitud
-      let accionRealizar = null;
-      if (muestra.planitud_superior !== undefined && 
-          muestra.planitud_inferior !== undefined && 
-          muestra.planitud_depresiones !== undefined) {
-        accionRealizar = calcularPatronPlanitud(
-          muestra.planitud_superior,
-          muestra.planitud_inferior,
-          muestra.planitud_depresiones
-        );
-      }
-      
-      // Guardar cálculos
-      setCalculos(prev => ({
-        ...prev,
-        [muestra.item_numero]: {
-          tolerancia_porcentaje: toleranciaPorcentaje,
-          cumple_tolerancia: cumpleTolerancia,
-          accion_realizar: accionRealizar
-        }
-      }));
-    }
-
-    // Resetear formulario
-    setNuevaMuestra({
-      item_numero: verificacionData.muestras_verificadas.length + 2,
-      codigo_cliente: '',
-      tipo_testigo: '',
-      diametro_1_mm: undefined,
-      diametro_2_mm: undefined,
-      perpendicularidad_p1: undefined,
-      perpendicularidad_p2: undefined,
-      perpendicularidad_p3: undefined,
-      perpendicularidad_p4: undefined,
-      perpendicularidad_cumple: undefined,
-      planitud_superior: undefined,
-      planitud_inferior: undefined,
-      planitud_depresiones: undefined,
-      conformidad_correccion: undefined
-    });
-  };
-
-  // Eliminar muestra
-  const eliminarMuestra = (index: number) => {
-    setVerificacionData(prev => ({
-      ...prev,
-      muestras_verificadas: prev.muestras_verificadas.filter((_, i) => i !== index)
+      muestras_verificadas: nuevasMuestras
     }));
   };
+
 
   // Guardar verificación
   const guardarVerificacion = async () => {
@@ -258,11 +218,11 @@ const VerificacionMuestrasForm: React.FC = () => {
 
       if (response.ok) {
         try {
-          const result = await response.json();
+          await response.json();
           alert('Verificación guardada exitosamente');
           navigate('/verificacion');
         } catch (jsonError) {
-          console.log('Respuesta no es JSON válido, pero la operación fue exitosa');
+          // Respuesta no es JSON válido, pero la operación fue exitosa
           alert('Verificación guardada exitosamente');
           navigate('/verificacion');
         }
@@ -290,7 +250,7 @@ const VerificacionMuestrasForm: React.FC = () => {
           Verificación de Muestras Cilíndricas de Concreto
         </h1>
 
-        {/* Información general */}
+        {/* Información general - ARRIBA */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -361,494 +321,492 @@ const VerificacionMuestrasForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Formulario para nueva muestra */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Agregar Nueva Muestra</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código Cliente *
-              </label>
-              <input
-                type="text"
-                value={nuevaMuestra.codigo_cliente}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  codigo_cliente: e.target.value
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Código del cliente"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo de Testigo (MANUAL)
-              </label>
-              <input
-                type="text"
-                value={nuevaMuestra.tipo_testigo || ''}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  tipo_testigo: e.target.value
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: 30x15, 20x10, Diamantin"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Diámetro 1 (mm) (FORMULA)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={nuevaMuestra.diametro_1_mm || ''}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  diametro_1_mm: e.target.value ? parseFloat(e.target.value) : undefined
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder=""
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Diámetro 2 (mm) (FORMULA)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={nuevaMuestra.diametro_2_mm || ''}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  diametro_2_mm: e.target.value ? parseFloat(e.target.value) : undefined
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder=""
-              />
-            </div>
-          </div>
-
-          {/* Resultado de la fórmula */}
-          {nuevaMuestra.diametro_1_mm && nuevaMuestra.diametro_2_mm && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-gray-700">Resultado de la fórmula:</span>
-                  <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">ΔΦ &gt;2% (mm):</span>
-                    <span className="font-mono text-sm bg-white px-2 py-1 border rounded">
-                      {(() => {
-                        const diametro1 = nuevaMuestra.diametro_1_mm!;
-                        const diametro2 = nuevaMuestra.diametro_2_mm!;
-                        const diferencia = Math.abs(diametro1 - diametro2);
-                        const toleranciaPorcentaje = (diferencia / diametro1) * 100;
-                        return toleranciaPorcentaje.toFixed(2);
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Cumple:</span>
-                    <span className={`text-lg font-bold ${
-                      (() => {
-                        const diametro1 = nuevaMuestra.diametro_1_mm!;
-                        const diametro2 = nuevaMuestra.diametro_2_mm!;
-                        const diferencia = Math.abs(diametro1 - diametro2);
-                        const toleranciaPorcentaje = (diferencia / diametro1) * 100;
-                        return toleranciaPorcentaje <= 2.0;
-                      })() ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {(() => {
-                        const diametro1 = nuevaMuestra.diametro_1_mm!;
-                        const diametro2 = nuevaMuestra.diametro_2_mm!;
-                        const diferencia = Math.abs(diametro1 - diametro2);
-                        const toleranciaPorcentaje = (diferencia / diametro1) * 100;
-                        return toleranciaPorcentaje <= 2.0 ? '✓' : '✗';
-                      })()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                Tolerancia: 2% (Testigo 30x15cm = 3mm, Testigo 20x10cm = 2mm)
-              </div>
-            </div>
-          )}
-
-
-          {/* PERPENDICULARIDAD MANUAL */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 bg-gray-100 p-2 rounded border">
-              PERPENDICULARIDAD MANUAL
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Perpendicularidad P1 (MANUAL)
-                </label>
-              <select
-                value={nuevaMuestra.perpendicularidad_p1 === undefined ? '' : nuevaMuestra.perpendicularidad_p1 ? 'true' : 'false'}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  perpendicularidad_p1: e.target.value === '' ? undefined : e.target.value === 'true'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar</option>
-                <option value="true">✓</option>
-                <option value="false">✗</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Perpendicularidad P2 (MANUAL)
-              </label>
-              <select
-                value={nuevaMuestra.perpendicularidad_p2 === undefined ? '' : nuevaMuestra.perpendicularidad_p2 ? 'true' : 'false'}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  perpendicularidad_p2: e.target.value === '' ? undefined : e.target.value === 'true'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar</option>
-                <option value="true">✓</option>
-                <option value="false">✗</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Perpendicularidad P3 (MANUAL)
-              </label>
-              <select
-                value={nuevaMuestra.perpendicularidad_p3 === undefined ? '' : nuevaMuestra.perpendicularidad_p3 ? 'true' : 'false'}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  perpendicularidad_p3: e.target.value === '' ? undefined : e.target.value === 'true'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar</option>
-                <option value="true">✓</option>
-                <option value="false">✗</option>
-              </select>
-            </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Perpendicularidad P4 (MANUAL)
-                </label>
-                <select
-                  value={nuevaMuestra.perpendicularidad_p4 === undefined ? '' : nuevaMuestra.perpendicularidad_p4 ? 'true' : 'false'}
-                  onChange={(e) => setNuevaMuestra(prev => ({
-                    ...prev,
-                    perpendicularidad_p4: e.target.value === '' ? undefined : e.target.value === 'true'
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="true">✓</option>
-                  <option value="false">✗</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  MEDIDA &lt;0.5° (MANUAL)
-                </label>
-                <select
-                  value={nuevaMuestra.perpendicularidad_cumple === undefined ? '' : nuevaMuestra.perpendicularidad_cumple ? 'true' : 'false'}
-                  onChange={(e) => setNuevaMuestra(prev => ({
-                    ...prev,
-                    perpendicularidad_cumple: e.target.value === '' ? undefined : e.target.value === 'true'
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="true">✓</option>
-                  <option value="false">✗</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* PLANITUD MANUAL CON PATRON Y RESULTADO EN ACCION A REALIZAR */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 bg-gray-100 p-2 rounded border">
-              PLANITUD MANUAL CON PATRON Y RESULTADO EN ACCION A REALIZAR
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Planitud Superior (PATRON)
-                </label>
-              <select
-                value={nuevaMuestra.planitud_superior === undefined ? '' : nuevaMuestra.planitud_superior ? 'true' : 'false'}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  planitud_superior: e.target.value === '' ? undefined : e.target.value === 'true'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar</option>
-                <option value="true">✓</option>
-                <option value="false">✗</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Planitud Inferior (PATRON)
-              </label>
-              <select
-                value={nuevaMuestra.planitud_inferior === undefined ? '' : nuevaMuestra.planitud_inferior ? 'true' : 'false'}
-                onChange={(e) => setNuevaMuestra(prev => ({
-                  ...prev,
-                  planitud_inferior: e.target.value === '' ? undefined : e.target.value === 'true'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar</option>
-                <option value="true">✓</option>
-                <option value="false">✗</option>
-              </select>
-            </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Depresiones (PATRON)
-                </label>
-                <select
-                  value={nuevaMuestra.planitud_depresiones === undefined ? '' : nuevaMuestra.planitud_depresiones ? 'true' : 'false'}
-                  onChange={(e) => setNuevaMuestra(prev => ({
-                    ...prev,
-                    planitud_depresiones: e.target.value === '' ? undefined : e.target.value === 'true'
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="true">✓</option>
-                  <option value="false">✗</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Resultado del patrón */}
-          {nuevaMuestra.planitud_superior !== undefined && 
-           nuevaMuestra.planitud_inferior !== undefined && 
-           nuevaMuestra.planitud_depresiones !== undefined && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-gray-700">Acción a realizar (PATRON):</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">C. Superior:</span>
-                    <span className={`text-sm font-bold ${
-                      nuevaMuestra.planitud_superior ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {nuevaMuestra.planitud_superior ? '✓' : '✗'}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">C. Inferior:</span>
-                    <span className={`text-sm font-bold ${
-                      nuevaMuestra.planitud_inferior ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {nuevaMuestra.planitud_inferior ? '✓' : '✗'}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Depresiones:</span>
-                    <span className={`text-sm font-bold ${
-                      nuevaMuestra.planitud_depresiones ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {nuevaMuestra.planitud_depresiones ? '✓' : '✗'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <span className="text-sm font-medium text-gray-700">Acción calculada: </span>
-                <span className="text-sm font-bold text-blue-600">
-                  {(() => {
-                    // Patrón basado en la tabla: C. SUPERIOR, C. INFERIOR, Depresiones
-                    const planitudSuperior = nuevaMuestra.planitud_superior!;
-                    const planitudInferior = nuevaMuestra.planitud_inferior;
-                    const depresiones = nuevaMuestra.planitud_depresiones;
-                    
-                    // Verificar que todos los campos estén completos
-                    if (planitudInferior === undefined || depresiones === undefined) {
-                      return "Completar todos los campos de planitud";
-                    }
-                    
-                    // Aplicar la función de cálculo de patrón
-                    return calcularPatronPlanitud(planitudSuperior, planitudInferior, depresiones);
-                  })()}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* CONFORMIDAD CORRECCION MANUAL */}
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 bg-gray-100 p-2 rounded border">
-              CONFORMIDAD CORRECCION MANUAL
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Conformidad Corrección (MANUAL)
-                </label>
-                <select
-                  value={nuevaMuestra.conformidad_correccion === undefined ? '' : nuevaMuestra.conformidad_correccion ? 'true' : 'false'}
-                  onChange={(e) => setNuevaMuestra(prev => ({
-                    ...prev,
-                    conformidad_correccion: e.target.value === '' ? undefined : e.target.value === 'true'
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="true">✓</option>
-                  <option value="false">✗</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
+        {/* Tabla tipo Excel para ingresar muestras - EN MEDIO */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Muestras Verificadas</h3>
             <button
-              onClick={agregarMuestra}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Agregar Muestra
-            </button>
+                onClick={() => {
+                  const nuevaFila = crearMuestraVacia(verificacionData.muestras_verificadas.length + 1);
+                  setVerificacionData(prev => ({
+                    ...prev,
+                    muestras_verificadas: [...prev.muestras_verificadas, nuevaFila]
+                  }));
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                + Agregar Fila
+              </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center sticky left-0 bg-gray-100 z-10 min-w-[40px]">N°</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center min-w-[120px]">Código LEM</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center min-w-[100px]">Tipo Testigo</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Diámetro 1 (mm)</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Diámetro 2 (mm)</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[80px]">ΔΦ 2%&gt;</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Aceptación</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-yellow-50 min-w-[80px]">SUP 1</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-yellow-50 min-w-[80px]">SUP 2</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-yellow-50 min-w-[80px]">INF 1</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-yellow-50 min-w-[80px]">INF 2</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-yellow-50 min-w-[90px]">MEDIDA &lt;0.5°</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-green-50 min-w-[100px]">C. SUPERIOR</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-green-50 min-w-[100px]">C. INFERIOR</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-green-50 min-w-[100px]">DEPRESIONES</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-purple-50 min-w-[150px]">ACCIÓN</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center min-w-[100px]">Conformidad</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Longitud 1</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Longitud 2</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[90px]">Longitud 3</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[100px]">Masa (g)</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center bg-blue-50 min-w-[100px]">Pesar</th>
+                  <th className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center min-w-[60px]">Del</th>
+                </tr>
+              </thead>
+              <tbody>
+                {verificacionData.muestras_verificadas.length === 0 ? (
+                  <tr>
+                    <td colSpan={23} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                      No hay muestras. Haz clic en "+ Agregar Fila" para comenzar.
+                    </td>
+                  </tr>
+                ) : (
+                  verificacionData.muestras_verificadas.map((muestra, index) => {
+                    // Calcular valores automáticamente para esta muestra
+                    let toleranciaPorcentaje: number | undefined;
+                    let aceptacionDiametro: string = '';
+                    let accionRealizar: string = '';
+                    let masaCalculada: number | undefined;
+                    let pesarCalculado: string = '';
+                    let ratioLD: number | undefined;
+
+                    // Calcular tolerancia y aceptación de diámetro
+                    if (muestra.diametro_1_mm && muestra.diametro_2_mm) {
+                      const diferencia = Math.abs(muestra.diametro_1_mm - muestra.diametro_2_mm);
+                      toleranciaPorcentaje = (diferencia / muestra.diametro_1_mm) * 100;
+                      aceptacionDiametro = toleranciaPorcentaje <= 2.0 ? 'Cumple' : 'No cumple';
+                    }
+
+                    // Calcular acción a realizar
+                    const planitudSup = muestra.planitud_superior_aceptacion || 
+                                      (muestra.planitud_superior !== undefined ? (muestra.planitud_superior ? 'Cumple' : 'No cumple') : null);
+                    const planitudInf = muestra.planitud_inferior_aceptacion || 
+                                      (muestra.planitud_inferior !== undefined ? (muestra.planitud_inferior ? 'Cumple' : 'No cumple') : null);
+                    const planitudDep = muestra.planitud_depresiones_aceptacion || 
+                                      (muestra.planitud_depresiones !== undefined ? (muestra.planitud_depresiones ? 'Cumple' : 'No cumple') : null);
+                    
+                    if (planitudSup && planitudInf && planitudDep) {
+                      const supBool = planitudSup.toLowerCase() === 'cumple';
+                      const infBool = planitudInf.toLowerCase() === 'cumple';
+                      const depBool = planitudDep.toLowerCase() === 'cumple';
+                      accionRealizar = calcularPatronPlanitud(supBool, infBool, depBool);
+                    }
+
+                    // Calcular masa y L/D (usar valores calculados de la muestra o recalcular)
+                    if (muestra.diametro_1_mm && muestra.diametro_2_mm) {
+                      const diametroPromedioMm = (muestra.diametro_1_mm + muestra.diametro_2_mm) / 2;
+                      const longitudes = [
+                        muestra.longitud_1_mm,
+                        muestra.longitud_2_mm,
+                        muestra.longitud_3_mm
+                      ].filter((l): l is number => l !== undefined && l !== null);
+                      
+                      if (longitudes.length > 0) {
+                        const longitudPromedioMm = longitudes.reduce((sum, l) => sum + l, 0) / longitudes.length;
+                        ratioLD = longitudPromedioMm / diametroPromedioMm;
+                        pesarCalculado = ratioLD <= RATIO_LD_LIMITE ? 'Pesar' : 'No pesar';
+                        
+                        // Calcular masa usando la misma fórmula
+                        const diametroPromedioCm = diametroPromedioMm / 10;
+                        const longitudPromedioCm = longitudPromedioMm / 10;
+                        const radioCm = diametroPromedioCm / 2;
+                        const volumenCm3 = Math.PI * Math.pow(radioCm, 2) * longitudPromedioCm;
+                        masaCalculada = Math.round(DENSIDAD_CONCRETO * volumenCm3);
+                      }
+                    }
+
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-2 py-1 text-center text-sm sticky left-0 bg-white z-10">
+                          {muestra.item_numero}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1">
+                          <input
+                            type="text"
+                            value={muestra.codigo_lem || muestra.codigo_cliente || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              codigo_lem: e.target.value,
+                              codigo_cliente: e.target.value
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="1025-CO-25"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1">
+                          <input
+                            type="text"
+                            value={muestra.tipo_testigo || ''}
+                            onChange={(e) => actualizarMuestra(index, { tipo_testigo: e.target.value })}
+                            className="w-full px-1 py-1 text-xs border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="4in x 8in"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-blue-50">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={muestra.diametro_1_mm || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              diametro_1_mm: e.target.value ? parseFloat(e.target.value) : undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="102.21"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-blue-50">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={muestra.diametro_2_mm || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              diametro_2_mm: e.target.value ? parseFloat(e.target.value) : undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="102.32"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center text-xs bg-blue-50 font-mono">
+                          {toleranciaPorcentaje !== undefined ? `${toleranciaPorcentaje.toFixed(2)}%` : ''}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center text-xs bg-blue-50">
+                          {aceptacionDiametro}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-yellow-50">
+                          <select
+                            value={muestra.perpendicularidad_sup1 === undefined ? '' : muestra.perpendicularidad_sup1 ? 'true' : 'false'}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? undefined : e.target.value === 'true';
+                              actualizarMuestra(index, {
+                                perpendicularidad_sup1: value,
+                                perpendicularidad_p1: value
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="true">Cumple</option>
+                            <option value="false">No cumple</option>
+              </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-yellow-50">
+              <select
+                            value={muestra.perpendicularidad_sup2 === undefined ? '' : muestra.perpendicularidad_sup2 ? 'true' : 'false'}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? undefined : e.target.value === 'true';
+                              actualizarMuestra(index, {
+                                perpendicularidad_sup2: value,
+                                perpendicularidad_p2: value
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="true">Cumple</option>
+                            <option value="false">No cumple</option>
+              </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-yellow-50">
+              <select
+                            value={muestra.perpendicularidad_inf1 === undefined ? '' : muestra.perpendicularidad_inf1 ? 'true' : 'false'}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? undefined : e.target.value === 'true';
+                              actualizarMuestra(index, {
+                                perpendicularidad_inf1: value,
+                                perpendicularidad_p3: value
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="true">Cumple</option>
+                            <option value="false">No cumple</option>
+              </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-yellow-50">
+                          <select
+                            value={muestra.perpendicularidad_inf2 === undefined ? '' : muestra.perpendicularidad_inf2 ? 'true' : 'false'}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? undefined : e.target.value === 'true';
+                              actualizarMuestra(index, {
+                                perpendicularidad_inf2: value,
+                                perpendicularidad_p4: value
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="true">Cumple</option>
+                            <option value="false">No cumple</option>
+                          </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-yellow-50">
+                          <select
+                            value={muestra.perpendicularidad_medida === undefined ? '' : muestra.perpendicularidad_medida ? 'true' : 'false'}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? undefined : e.target.value === 'true';
+                              actualizarMuestra(index, {
+                                perpendicularidad_medida: value,
+                                perpendicularidad_cumple: value
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="true">Cumple</option>
+                            <option value="false">No cumple</option>
+                          </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-green-50">
+                          <select
+                            value={muestra.planitud_superior_aceptacion || ''}
+                            onChange={(e) => {
+                              const valor = e.target.value || undefined;
+                              actualizarMuestra(index, {
+                                planitud_superior_aceptacion: valor,
+                                planitud_superior: valor === 'Cumple' ? true : valor === 'No cumple' ? false : undefined
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="Cumple">Cumple</option>
+                            <option value="No cumple">No cumple</option>
+                          </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-green-50">
+                          <select
+                            value={muestra.planitud_inferior_aceptacion || ''}
+                            onChange={(e) => {
+                              const valor = e.target.value || undefined;
+                              actualizarMuestra(index, {
+                                planitud_inferior_aceptacion: valor,
+                                planitud_inferior: valor === 'Cumple' ? true : valor === 'No cumple' ? false : undefined
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="Cumple">Cumple</option>
+                            <option value="No cumple">No cumple</option>
+                          </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-green-50">
+                          <select
+                            value={muestra.planitud_depresiones_aceptacion || ''}
+                            onChange={(e) => {
+                              const valor = e.target.value || undefined;
+                              actualizarMuestra(index, {
+                                planitud_depresiones_aceptacion: valor,
+                                planitud_depresiones: valor === 'Cumple' ? true : valor === 'No cumple' ? false : undefined
+                              });
+                            }}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">-</option>
+                            <option value="Cumple">Cumple</option>
+                            <option value="No cumple">No cumple</option>
+                          </select>
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center text-xs bg-purple-50 font-semibold">
+                          {accionRealizar || '-'}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1">
+                          <input
+                            type="text"
+                            value={muestra.conformidad || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              conformidad: e.target.value || undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="Ensayar"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-blue-50">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={muestra.longitud_1_mm || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              longitud_1_mm: e.target.value ? parseFloat(e.target.value) : undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="150"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-blue-50">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={muestra.longitud_2_mm || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              longitud_2_mm: e.target.value ? parseFloat(e.target.value) : undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="202.25"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 bg-blue-50">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={muestra.longitud_3_mm || ''}
+                            onChange={(e) => actualizarMuestra(index, {
+                              longitud_3_mm: e.target.value ? parseFloat(e.target.value) : undefined
+                            })}
+                            className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="150"
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center text-xs bg-blue-50 font-mono font-semibold">
+                          {masaCalculada || ''}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center text-xs bg-blue-50 font-semibold">
+                          {pesarCalculado || muestra.pesar || ''}
+                        </td>
+                        <td className="border border-gray-300 px-2 py-1 text-center">
+                          <button
+                            onClick={() => {
+                              const nuevasMuestras = verificacionData.muestras_verificadas.filter((_, i) => i !== index);
+                              // Renumerar items
+                              nuevasMuestras.forEach((m, i) => {
+                                m.item_numero = i + 1;
+                              });
+                              setVerificacionData(prev => ({
+                                ...prev,
+                                muestras_verificadas: nuevasMuestras
+                              }));
+                            }}
+                            className="text-red-600 hover:text-red-800 text-xs px-2 py-1"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Tabla de muestras */}
-        {verificacionData.muestras_verificadas.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Muestras Verificadas</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 border-b text-left">N°</th>
-                    <th className="px-4 py-2 border-b text-left">Código Cliente</th>
-                    <th className="px-4 py-2 border-b text-left">Tipo Testigo</th>
-                    <th className="px-4 py-2 border-b text-left">Diámetro 1</th>
-                    <th className="px-4 py-2 border-b text-left">Diámetro 2</th>
-                    <th className="px-4 py-2 border-b text-left">Tolerancia %</th>
-                    <th className="px-4 py-2 border-b text-left">Cumple</th>
-                    <th className="px-4 py-2 border-b text-left">P1</th>
-                    <th className="px-4 py-2 border-b text-left">P2</th>
-                    <th className="px-4 py-2 border-b text-left">P3</th>
-                    <th className="px-4 py-2 border-b text-left">P4</th>
-                    <th className="px-4 py-2 border-b text-left">MEDIDA &lt;0.5°</th>
-                    <th className="px-4 py-2 border-b text-left">Plan. Superior</th>
-                    <th className="px-4 py-2 border-b text-left">Plan. Inferior</th>
-                    <th className="px-4 py-2 border-b text-left">Depresiones</th>
-                    <th className="px-4 py-2 border-b text-left">Acción</th>
-                    <th className="px-4 py-2 border-b text-left">Conformidad</th>
-                    <th className="px-4 py-2 border-b text-left">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {verificacionData.muestras_verificadas.map((muestra, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 border-b">{muestra.item_numero}</td>
-                      <td className="px-4 py-2 border-b">{muestra.codigo_cliente}</td>
-                      <td className="px-4 py-2 border-b">{muestra.tipo_testigo || '-'}</td>
-                      <td className="px-4 py-2 border-b">{muestra.diametro_1_mm || '-'}</td>
-                      <td className="px-4 py-2 border-b">{muestra.diametro_2_mm || '-'}</td>
-                      <td className="px-4 py-2 border-b">
-                        {calculos[muestra.item_numero]?.tolerancia_porcentaje?.toFixed(2) || '-'}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {calculos[muestra.item_numero]?.cumple_tolerancia !== undefined 
-                          ? (calculos[muestra.item_numero]?.cumple_tolerancia ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.perpendicularidad_p1 !== undefined 
-                          ? (muestra.perpendicularidad_p1 ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.perpendicularidad_p2 !== undefined 
-                          ? (muestra.perpendicularidad_p2 ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.perpendicularidad_p3 !== undefined 
-                          ? (muestra.perpendicularidad_p3 ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.perpendicularidad_p4 !== undefined 
-                          ? (muestra.perpendicularidad_p4 ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.perpendicularidad_cumple !== undefined 
-                          ? (muestra.perpendicularidad_cumple ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.planitud_superior !== undefined 
-                          ? (muestra.planitud_superior ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.planitud_inferior !== undefined 
-                          ? (muestra.planitud_inferior ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.planitud_depresiones !== undefined 
-                          ? (muestra.planitud_depresiones ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {calculos[muestra.item_numero]?.accion_realizar || '-'}
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        {muestra.conformidad_correccion !== undefined 
-                          ? (muestra.conformidad_correccion ? '✓' : '✗')
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-2 border-b">
-                        <button
-                          onClick={() => eliminarMuestra(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* Equipos utilizados - ABAJO */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Equipos Utilizados</h3>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bernier
+                </label>
+                <select
+                value={verificacionData.equipo_bernier || ''}
+                onChange={(e) => setVerificacionData(prev => ({
+                    ...prev,
+                  equipo_bernier: e.target.value || undefined
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <option value="">-</option>
+                <option value="EQP-0255">EQP-0255</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lainas 1
+                </label>
+                <select
+                value={verificacionData.equipo_lainas_1 || ''}
+                onChange={(e) => setVerificacionData(prev => ({
+                    ...prev,
+                  equipo_lainas_1: e.target.value || undefined
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <option value="">-</option>
+                <option value="EQP-0255">EQP-0255</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lainas 2
+                </label>
+              <select
+                value={verificacionData.equipo_lainas_2 || ''}
+                onChange={(e) => setVerificacionData(prev => ({
+                  ...prev,
+                  equipo_lainas_2: e.target.value || undefined
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-</option>
+                <option value="EQP-0255">EQP-0255</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Escuadra
+              </label>
+              <select
+                value={verificacionData.equipo_escuadra || ''}
+                onChange={(e) => setVerificacionData(prev => ({
+                  ...prev,
+                  equipo_escuadra: e.target.value || undefined
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-</option>
+                <option value="EQP-0255">EQP-0255</option>
+              </select>
+            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                Balanza
+                </label>
+                <select
+                value={verificacionData.equipo_balanza || ''}
+                onChange={(e) => setVerificacionData(prev => ({
+                    ...prev,
+                  equipo_balanza: e.target.value || undefined
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <option value="">-</option>
+                <option value="EQP-0255">EQP-0255</option>
+                </select>
+              </div>
             </div>
           </div>
-        )}
+
+        {/* Nota - ABAJO */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Nota</h3>
+          <textarea
+            value={verificacionData.nota || ''}
+            onChange={(e) => setVerificacionData(prev => ({
+                    ...prev,
+              nota: e.target.value
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Ingrese una nota adicional..."
+            rows={2}
+            maxLength={500}
+          />
+          </div>
 
         {/* Botones de acción */}
         <div className="flex justify-end space-x-4">

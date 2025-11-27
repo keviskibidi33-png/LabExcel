@@ -2,7 +2,7 @@
 Esquemas Pydantic para validación de datos del sistema de recepción de muestras
 """
 
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, root_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import re
@@ -401,31 +401,59 @@ class BusquedaClienteResponse(BaseModel):
 # ===== SCHEMAS PARA VERIFICACIÓN DE MUESTRAS CILÍNDRICAS =====
 
 class MuestraVerificadaBase(BaseModel):
-    """Esquema base para muestras verificadas"""
+    """Esquema base para muestras verificadas - Formato V03"""
     item_numero: int = Field(..., ge=1, description="Número de item")
-    codigo_cliente: str = Field(..., min_length=1, max_length=50, description="Código del cliente")
+    codigo_lem: Optional[str] = Field(None, max_length=50, description="Código LEM de la muestra")
     
     # TIPO DE TESTIGO (MANUAL)
-    tipo_testigo: str = Field("", max_length=50, description="Tipo de testigo (texto libre)")
+    tipo_testigo: Optional[str] = Field("", max_length=50, description="Tipo de testigo (4in x 8in, 6in x 12in, Diamantina)")
     
     # DIÁMETRO (FORMULA)
     diametro_1_mm: Optional[float] = Field(None, gt=0, description="Diámetro 1 en mm")
     diametro_2_mm: Optional[float] = Field(None, gt=0, description="Diámetro 2 en mm")
+    tolerancia_porcentaje: Optional[float] = Field(None, description="ΔΦ 2%> - Tolerancia calculada en %")
+    aceptacion_diametro: Optional[str] = Field(None, max_length=20, description="Aceptación diámetro (Cumple/No cumple)")
     
-    # PERPENDICULARIDAD (MANUAL)
-    perpendicularidad_p1: Optional[bool] = Field(None, description="Perpendicularidad P1 (V/X)")
-    perpendicularidad_p2: Optional[bool] = Field(None, description="Perpendicularidad P2 (V/X)")
-    perpendicularidad_p3: Optional[bool] = Field(None, description="Perpendicularidad P3 (V/X)")
-    perpendicularidad_p4: Optional[bool] = Field(None, description="Perpendicularidad P4 (V/X)")
-    perpendicularidad_cumple: Optional[bool] = Field(None, description="Perpendicularidad cumple <0.5° (V/X)")
+    # PERPENDICULARIDAD (4inx8in < 2mm) o (6inx12in < 3mm)
+    perpendicularidad_sup1: Optional[bool] = Field(None, description="SUP 1 Aceptacion (V/X)")
+    perpendicularidad_sup2: Optional[bool] = Field(None, description="SUP 2 Aceptacion (V/X)")
+    perpendicularidad_inf1: Optional[bool] = Field(None, description="INF 1 Aceptacion (V/X)")
+    perpendicularidad_inf2: Optional[bool] = Field(None, description="INF 2 Aceptacion (V/X)")
+    perpendicularidad_medida: Optional[bool] = Field(None, description="MEDIDA < 0.5* (V/X)")
     
-    # PLANITUD (PATRON)
-    planitud_superior: Optional[bool] = Field(None, description="Planitud superior <0.05mm (V/X)")
-    planitud_inferior: Optional[bool] = Field(None, description="Planitud inferior <0.05mm (V/X)")
-    planitud_depresiones: Optional[bool] = Field(None, description="Depresiones ≤5mm (V/X)")
+    # PLANITUD
+    planitud_medida: Optional[bool] = Field(None, description="MEDIDA < 0.5* (V/X)")
+    planitud_superior_aceptacion: Optional[str] = Field(None, max_length=20, description="C. SUPERIOR < 0.05 mm Aceptacion (Cumple/No cumple)")
+    planitud_inferior_aceptacion: Optional[str] = Field(None, max_length=20, description="C. INFERIOR < 0.05 mm Aceptacion (Cumple/No cumple)")
+    planitud_depresiones_aceptacion: Optional[str] = Field(None, max_length=20, description="Depresiones ≤ 5 mm Aceptacion (Cumple/No cumple)")
+    
+    # ACCIÓN A REALIZAR (PATRON - CALCULADO AUTOMÁTICAMENTE)
+    accion_realizar: Optional[str] = Field(None, max_length=200, description="Acción a realizar calculada por patrón")
     
     # CONFORMIDAD
-    conformidad_correccion: Optional[bool] = Field(None, description="Conformidad corrección realizada (V/X)")
+    conformidad: Optional[str] = Field(None, max_length=50, description="Conformidad (Ensayar, etc.)")
+    
+    # LONGITUD (L/D ≤1.75)
+    longitud_1_mm: Optional[float] = Field(None, gt=0, description="Longitud 1 en mm")
+    longitud_2_mm: Optional[float] = Field(None, gt=0, description="Longitud 2 en mm")
+    longitud_3_mm: Optional[float] = Field(None, gt=0, description="Longitud 3 en mm")
+    
+    # MASA
+    masa_muestra_aire_g: Optional[float] = Field(None, gt=0, description="Masa muestra aire en gramos")
+    pesar: Optional[str] = Field(None, max_length=20, description="Pesar / No pesar")
+    
+    # Campos legacy para compatibilidad
+    codigo_cliente: Optional[str] = Field(None, max_length=50, description="[DEPRECATED] Usar codigo_lem")
+    perpendicularidad_p1: Optional[bool] = Field(None, description="[DEPRECATED] Usar perpendicularidad_sup1")
+    perpendicularidad_p2: Optional[bool] = Field(None, description="[DEPRECATED] Usar perpendicularidad_sup2")
+    perpendicularidad_p3: Optional[bool] = Field(None, description="[DEPRECATED] Usar perpendicularidad_inf1")
+    perpendicularidad_p4: Optional[bool] = Field(None, description="[DEPRECATED] Usar perpendicularidad_inf2")
+    perpendicularidad_cumple: Optional[bool] = Field(None, description="[DEPRECATED] Usar perpendicularidad_medida")
+    planitud_superior: Optional[bool] = Field(None, description="[DEPRECATED] Usar planitud_superior_aceptacion")
+    planitud_inferior: Optional[bool] = Field(None, description="[DEPRECATED] Usar planitud_inferior_aceptacion")
+    planitud_depresiones: Optional[bool] = Field(None, description="[DEPRECATED] Usar planitud_depresiones_aceptacion")
+    cumple_tolerancia: Optional[bool] = Field(None, description="[DEPRECATED] Usar aceptacion_diametro")
+    conformidad_correccion: Optional[bool] = Field(None, description="[DEPRECATED] Usar conformidad")
 
 
 class MuestraVerificadaCreate(MuestraVerificadaBase):
@@ -435,11 +463,13 @@ class MuestraVerificadaCreate(MuestraVerificadaBase):
 class MuestraVerificadaResponse(MuestraVerificadaBase):
     """Esquema de respuesta para muestras verificadas"""
     id: int
-    tolerancia_porcentaje: Optional[float] = Field(None, description="Tolerancia calculada en %")
-    cumple_tolerancia: Optional[bool] = Field(None, description="Cumple tolerancia (V/X)")
-    accion_realizar: Optional[str] = Field(None, description="Acción a realizar calculada por patrón")
     fecha_creacion: datetime
     fecha_actualizacion: Optional[datetime] = None
+    
+    @validator('codigo_lem', pre=True, always=True)
+    def ensure_codigo_lem_string(cls, v):
+        """Asegurar que codigo_lem siempre sea una cadena"""
+        return v if v is not None else ''
     
     class Config:
         from_attributes = True
@@ -447,8 +477,8 @@ class MuestraVerificadaResponse(MuestraVerificadaBase):
 class VerificacionMuestrasBase(BaseModel):
     """Esquema base para verificación de muestras"""
     numero_verificacion: str = Field(..., min_length=1, max_length=50, description="Número de verificación")
-    codigo_documento: str = Field("F-LEM-P", max_length=50, description="Código del documento")
-    version: str = Field("02", max_length=10, description="Versión del documento")
+    codigo_documento: str = Field("F-LEM-P-01.12", max_length=50, description="Código del documento")
+    version: str = Field("03", max_length=10, description="Versión del documento")
     fecha_documento: str = Field(..., description="Fecha del documento (DD/MM/YYYY)")
     pagina: str = Field("1 de 1", max_length=20, description="Página del documento")
     
@@ -458,6 +488,16 @@ class VerificacionMuestrasBase(BaseModel):
     
     # Información del cliente
     cliente: Optional[str] = Field(None, max_length=200, description="Nombre del cliente")
+    
+    # Equipos utilizados (fila 18 en Excel)
+    equipo_bernier: Optional[str] = Field(None, max_length=50, description="Código equipo Bernier")
+    equipo_lainas_1: Optional[str] = Field(None, max_length=50, description="Código equipo Lainas 1")
+    equipo_lainas_2: Optional[str] = Field(None, max_length=50, description="Código equipo Lainas 2")
+    equipo_escuadra: Optional[str] = Field(None, max_length=50, description="Código equipo Escuadra")
+    equipo_balanza: Optional[str] = Field(None, max_length=50, description="Código equipo Balanza")
+    
+    # Nota (fila 19 en Excel)
+    nota: Optional[str] = Field(None, max_length=500, description="Nota adicional")
     
     # Lista de muestras verificadas
     muestras_verificadas: List[MuestraVerificadaBase] = Field(..., min_items=1, description="Lista de muestras verificadas")

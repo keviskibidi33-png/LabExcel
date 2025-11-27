@@ -41,6 +41,12 @@ export default defineConfig({
   },
   server: {
     port: 3001,
+    host: true, // Permite acceso desde cualquier host
+    allowedHosts: [
+      'sublustrous-odelia-uninsured.ngrok-free.dev',
+      '.ngrok-free.dev', // Permite cualquier subdominio de ngrok
+      '.ngrok.io', // Permite también dominios .ngrok.io
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
