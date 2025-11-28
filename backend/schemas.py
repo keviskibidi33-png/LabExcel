@@ -431,7 +431,9 @@ class MuestraVerificadaBase(BaseModel):
     accion_realizar: Optional[str] = Field(None, max_length=200, description="Acción a realizar calculada por patrón")
     
     # CONFORMIDAD
-    conformidad: Optional[str] = Field(None, max_length=50, description="Conformidad (Ensayar, etc.)")
+    # IMPORTANTE: La conformidad es independiente y NO valida longitudes ni masa.
+    # Valida aspectos geométricos: Perpendicularidad, Planitud, Depresiones.
+    conformidad: Optional[str] = Field(None, max_length=50, description="Conformidad (Ensayar, etc.) - Independiente de longitudes y masa")
     
     # LONGITUD (L/D ≤1.75)
     longitud_1_mm: Optional[float] = Field(None, gt=0, description="Longitud 1 en mm")
@@ -530,6 +532,7 @@ class VerificacionMuestrasUpdate(BaseModel):
     fecha_verificacion: Optional[str] = None
     cliente: Optional[str] = None
     estado: Optional[str] = None
+    muestras_verificadas: Optional[List[Dict[str, Any]]] = None  # Permitir actualizar muestras
 
     @validator('fecha_verificacion')
     def validate_date_format(cls, v):

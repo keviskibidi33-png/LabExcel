@@ -170,20 +170,43 @@ class VerificacionService:
                 
                 # Si no hay aceptaciones como texto, usar booleanos legacy
                 if not planitud_sup_val:
-                    planitud_sup_val = muestra_data.planitud_superior
+                    planitud_sup_val = getattr(muestra_data, 'planitud_superior', None)
                 if not planitud_inf_val:
-                    planitud_inf_val = muestra_data.planitud_inferior
+                    planitud_inf_val = getattr(muestra_data, 'planitud_inferior', None)
                 if not planitud_dep_val:
-                    planitud_dep_val = muestra_data.planitud_depresiones
+                    planitud_dep_val = getattr(muestra_data, 'planitud_depresiones', None)
                 
-                if (planitud_sup_val is not None and 
-                    planitud_inf_val is not None and 
-                    planitud_dep_val is not None):
+                # Función para convertir strings a booleanos
+                def convertir_a_bool(valor):
+                    if valor is None:
+                        return None
+                    if isinstance(valor, bool):
+                        return valor
+                    if isinstance(valor, str):
+                        valor_lower = valor.lower().strip()
+                        # Si es "cumple" o equivalente, retornar True
+                        if valor_lower in ['cumple', 'true', '1', 'yes', 'sí', 'si']:
+                            return True
+                        # Si es "no cumple" o equivalente, retornar False
+                        elif valor_lower in ['no cumple', 'false', '0', 'no', 'n']:
+                            return False
+                        # Si no coincide, intentar convertir a bool
+                        return bool(valor) if valor else False
+                    return bool(valor) if valor is not None else False
+                
+                # Convertir valores a booleanos antes de crear CalculoPatronRequest
+                planitud_sup_bool = convertir_a_bool(planitud_sup_val)
+                planitud_inf_bool = convertir_a_bool(planitud_inf_val)
+                planitud_dep_bool = convertir_a_bool(planitud_dep_val)
+                
+                if (planitud_sup_bool is not None and 
+                    planitud_inf_bool is not None and 
+                    planitud_dep_bool is not None):
                     
                     patron_request = CalculoPatronRequest(
-                        planitud_superior=planitud_sup_val,
-                        planitud_inferior=planitud_inf_val,
-                        planitud_depresiones=planitud_dep_val
+                        planitud_superior=planitud_sup_bool,
+                        planitud_inferior=planitud_inf_bool,
+                        planitud_depresiones=planitud_dep_bool
                     )
                     
                     patron_result = self.calcular_patron_accion(patron_request)
@@ -217,6 +240,8 @@ class VerificacionService:
                     planitud_dep_acept = "Cumple" if muestra_data.planitud_depresiones else "No cumple"
                 
                 # Obtener conformidad (nuevo texto o legacy booleano)
+                # IMPORTANTE: La conformidad es independiente y NO valida longitudes ni masa.
+                # Valida aspectos geométricos: Perpendicularidad, Planitud, Depresiones.
                 conformidad = getattr(muestra_data, 'conformidad', None)
                 if not conformidad and getattr(muestra_data, 'conformidad_correccion', None) is not None:
                     conformidad = "Ensayar" if muestra_data.conformidad_correccion else ""
@@ -281,10 +306,19 @@ class VerificacionService:
             raise ValueError(f"Error creando verificación: {str(e)}")
     
     def obtener_verificacion(self, verificacion_id: int) -> Optional[VerificacionMuestras]:
-        """Obtiene una verificación por ID"""
-        return self.db.query(VerificacionMuestras).filter(
+        """Obtiene una verificación por ID con todas sus muestras"""
+        from sqlalchemy.orm import joinedload
+        verificacion = self.db.query(VerificacionMuestras).options(
+            joinedload(VerificacionMuestras.muestras_verificadas)
+        ).filter(
             VerificacionMuestras.id == verificacion_id
         ).first()
+        
+        if verificacion and verificacion.muestras_verificadas:
+            # Ordenar muestras por item_numero
+            verificacion.muestras_verificadas.sort(key=lambda m: m.item_numero or 0)
+        
+        return verificacion
     
     def listar_verificaciones(self, skip: int = 0, limit: int = 100) -> List[VerificacionMuestras]:
         """Lista todas las verificaciones"""
@@ -297,13 +331,186 @@ class VerificacionService:
             if not db_verificacion:
                 return None
             
+            # Separar muestras_verificadas del resto de los datos
+            muestras_verificadas = update_data.pop('muestras_verificadas', None)
+            
+            # Actualizar campos directos de la verificación
             for field, value in update_data.items():
-                if hasattr(db_verificacion, field):
+                if hasattr(db_verificacion, field) and field != 'muestras_verificadas':
                     setattr(db_verificacion, field, value)
             
-            self.db.commit()
-            self.db.refresh(db_verificacion)
+            # Si hay muestras_verificadas, actualizarlas
+            if muestras_verificadas is not None:
+                logger.info(f"Actualizando {len(muestras_verificadas)} muestras para verificación {verificacion_id}")
+                # Eliminar todas las muestras existentes
+                deleted_count = self.db.query(MuestraVerificada).filter(
+                    MuestraVerificada.verificacion_id == verificacion_id
+                ).delete()
+                logger.info(f"Eliminadas {deleted_count} muestras existentes")
+                
+                # Crear las nuevas muestras (usar la misma lógica que en crear_verificacion)
+                for idx, muestra_data in enumerate(muestras_verificadas, 1):
+                    # Convertir a dict si es un objeto Pydantic
+                    if hasattr(muestra_data, 'dict'):
+                        muestra_dict = muestra_data.dict()
+                    elif hasattr(muestra_data, '__dict__'):
+                        muestra_dict = muestra_data.__dict__
+                    else:
+                        muestra_dict = muestra_data if isinstance(muestra_data, dict) else {}
+                    
+                    # Función helper para obtener valores
+                    def get_val(key, default=None):
+                        if isinstance(muestra_dict, dict):
+                            return muestra_dict.get(key, default)
+                        return getattr(muestra_data, key, default) if hasattr(muestra_data, key) else default
+                    
+                    item_numero = get_val('item_numero')
+                    codigo_lem = get_val('codigo_lem') or get_val('codigo_cliente') or ""
+                    
+                    # Calcular fórmula de diámetros si se tienen ambos diámetros
+                    tolerancia_porcentaje = None
+                    cumple_tolerancia = None
+                    aceptacion_diametro = None
+                    
+                    diametro_1 = get_val('diametro_1_mm')
+                    diametro_2 = get_val('diametro_2_mm')
+                    tipo_testigo = get_val('tipo_testigo', "30x15")
+                    
+                    if diametro_1 and diametro_2:
+                        formula_request = CalculoFormulaRequest(
+                            diametro_1_mm=diametro_1,
+                            diametro_2_mm=diametro_2,
+                            tipo_testigo=tipo_testigo
+                        )
+                        formula_result = self.calcular_formula_diametros(formula_request)
+                        tolerancia_porcentaje = formula_result.tolerancia_porcentaje
+                        cumple_tolerancia = formula_result.cumple_tolerancia
+                        aceptacion_diametro = "Cumple" if cumple_tolerancia else "No cumple"
+                    
+                    # Calcular patrón de acción si se tienen todos los datos de planitud
+                    accion_realizar = None
+                    planitud_sup_val = get_val('planitud_superior_aceptacion')
+                    planitud_inf_val = get_val('planitud_inferior_aceptacion')
+                    planitud_dep_val = get_val('planitud_depresiones_aceptacion')
+                    
+                    if not planitud_sup_val:
+                        planitud_sup_val = get_val('planitud_superior')
+                    if not planitud_inf_val:
+                        planitud_inf_val = get_val('planitud_inferior')
+                    if not planitud_dep_val:
+                        planitud_dep_val = get_val('planitud_depresiones')
+                    
+                    def convertir_a_bool(valor):
+                        if valor is None:
+                            return None
+                        if isinstance(valor, bool):
+                            return valor
+                        if isinstance(valor, str):
+                            valor_lower = valor.lower().strip()
+                            if valor_lower in ['cumple', 'true', '1', 'yes', 'sí', 'si']:
+                                return True
+                            elif valor_lower in ['no cumple', 'false', '0', 'no', 'n']:
+                                return False
+                            return bool(valor) if valor else False
+                        return bool(valor) if valor is not None else False
+                    
+                    planitud_sup_bool = convertir_a_bool(planitud_sup_val)
+                    planitud_inf_bool = convertir_a_bool(planitud_inf_val)
+                    planitud_dep_bool = convertir_a_bool(planitud_dep_val)
+                    
+                    if (planitud_sup_bool is not None and 
+                        planitud_inf_bool is not None and 
+                        planitud_dep_bool is not None):
+                        patron_request = CalculoPatronRequest(
+                            planitud_superior=planitud_sup_bool,
+                            planitud_inferior=planitud_inf_bool,
+                            planitud_depresiones=planitud_dep_bool
+                        )
+                        patron_result = self.calcular_patron_accion(patron_request)
+                        accion_realizar = patron_result.accion_realizar
+                    
+                    # Obtener valores de perpendicularidad
+                    perp_sup1 = get_val('perpendicularidad_sup1') or get_val('perpendicularidad_p1')
+                    perp_sup2 = get_val('perpendicularidad_sup2') or get_val('perpendicularidad_p2')
+                    perp_inf1 = get_val('perpendicularidad_inf1') or get_val('perpendicularidad_p3')
+                    perp_inf2 = get_val('perpendicularidad_inf2') or get_val('perpendicularidad_p4')
+                    perp_medida = get_val('perpendicularidad_medida') or get_val('perpendicularidad_cumple')
+                    
+                    # Obtener valores de planitud
+                    planitud_medida = get_val('planitud_medida')
+                    planitud_sup_acept = get_val('planitud_superior_aceptacion')
+                    planitud_inf_acept = get_val('planitud_inferior_aceptacion')
+                    planitud_dep_acept = get_val('planitud_depresiones_aceptacion')
+                    
+                    if not planitud_sup_acept and get_val('planitud_superior') is not None:
+                        planitud_sup_acept = "Cumple" if get_val('planitud_superior') else "No cumple"
+                    if not planitud_inf_acept and get_val('planitud_inferior') is not None:
+                        planitud_inf_acept = "Cumple" if get_val('planitud_inferior') else "No cumple"
+                    if not planitud_dep_acept and get_val('planitud_depresiones') is not None:
+                        planitud_dep_acept = "Cumple" if get_val('planitud_depresiones') else "No cumple"
+                    
+                    conformidad = get_val('conformidad')
+                    if not conformidad and get_val('conformidad_correccion') is not None:
+                        conformidad = "Ensayar" if get_val('conformidad_correccion') else ""
+                    
+                    longitud_1 = get_val('longitud_1_mm')
+                    longitud_2 = get_val('longitud_2_mm')
+                    longitud_3 = get_val('longitud_3_mm')
+                    masa = get_val('masa_muestra_aire_g')
+                    pesar = get_val('pesar')
+                    
+                    # Crear la muestra verificada
+                    db_muestra = MuestraVerificada(
+                        verificacion_id=db_verificacion.id,
+                        item_numero=item_numero,
+                        codigo_lem=codigo_lem,
+                        tipo_testigo=tipo_testigo,
+                        diametro_1_mm=diametro_1,
+                        diametro_2_mm=diametro_2,
+                        tolerancia_porcentaje=tolerancia_porcentaje,
+                        aceptacion_diametro=aceptacion_diametro,
+                        perpendicularidad_sup1=perp_sup1,
+                        perpendicularidad_sup2=perp_sup2,
+                        perpendicularidad_inf1=perp_inf1,
+                        perpendicularidad_inf2=perp_inf2,
+                        perpendicularidad_medida=perp_medida,
+                        planitud_medida=planitud_medida,
+                        planitud_superior_aceptacion=planitud_sup_acept,
+                        planitud_inferior_aceptacion=planitud_inf_acept,
+                        planitud_depresiones_aceptacion=planitud_dep_acept,
+                        accion_realizar=accion_realizar,
+                        conformidad=conformidad,
+                        longitud_1_mm=longitud_1,
+                        longitud_2_mm=longitud_2,
+                        longitud_3_mm=longitud_3,
+                        masa_muestra_aire_g=masa,
+                        pesar=pesar,
+                        codigo_cliente=codigo_lem,
+                        cumple_tolerancia=cumple_tolerancia,
+                        perpendicularidad_p1=perp_sup1,
+                        perpendicularidad_p2=perp_sup2,
+                        perpendicularidad_p3=perp_inf1,
+                        perpendicularidad_p4=perp_inf2,
+                        perpendicularidad_cumple=perp_medida,
+                        planitud_superior=get_val('planitud_superior'),
+                        planitud_inferior=get_val('planitud_inferior'),
+                        planitud_depresiones=get_val('planitud_depresiones'),
+                        conformidad_correccion=get_val('conformidad_correccion')
+                    )
+                    
+                    self.db.add(db_muestra)
+                
+                # Forzar flush para asegurar que los cambios se escriban antes del commit
+                self.db.flush()
+                
+                # Commit después de agregar todas las muestras
+                self.db.commit()
+                logger.info(f"Verificación {verificacion_id} actualizada: {len(muestras_verificadas)} muestras guardadas")
+            else:
+                # Si no hay muestras_verificadas, solo hacer commit de los cambios en la verificación
+                self.db.commit()
             
+            self.db.refresh(db_verificacion)
             return db_verificacion
             
         except Exception as e:

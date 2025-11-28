@@ -57,6 +57,8 @@ export interface ItemOrden {
   especificacion?: string
 }
 
+export type OrdenTrabajoCreate = Partial<OrdenTrabajo>
+
 export interface RecepcionMuestraCreate {
   numero_ot: string
   numero_recepcion: string
@@ -253,6 +255,17 @@ export const apiService = {
       },
       () => databaseService.searchOrdenes(termino)
     )
+  },
+
+  // Verificaciones de Muestras
+  getVerificacion: async (id: number): Promise<any> => {
+    const response = await api.get(`/api/verificacion/${id}`)
+    return response.data
+  },
+
+  updateVerificacion: async (id: number, data: any): Promise<any> => {
+    const response = await api.put(`/api/verificacion/${id}`, data)
+    return response.data
   },
 }
 

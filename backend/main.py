@@ -216,6 +216,53 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now()}
 
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """Obtener estadísticas del dashboard"""
+    try:
+        # Contar recepciones por estado
+        total_recepciones = db.query(RecepcionMuestra).count()
+        recepciones_pendientes = db.query(RecepcionMuestra).filter(
+            RecepcionMuestra.estado == "PENDIENTE"
+        ).count()
+        recepciones_completadas = db.query(RecepcionMuestra).filter(
+            RecepcionMuestra.estado == "COMPLETADA"
+        ).count()
+        
+        # Contar total de muestras
+        total_muestras = db.query(MuestraConcreto).count()
+        
+        # Obtener recepciones recientes (últimas 5)
+        recepciones_recientes = db.query(RecepcionMuestra).order_by(
+            RecepcionMuestra.fecha_creacion.desc()
+        ).limit(5).all()
+        
+        # Convertir a formato de respuesta
+        ordenes_recientes = []
+        for recepcion in recepciones_recientes:
+            muestras = db.query(MuestraConcreto).filter(
+                MuestraConcreto.recepcion_id == recepcion.id
+            ).all()
+            ordenes_recientes.append({
+                "id": recepcion.id,
+                "numero_ot": recepcion.numero_ot,
+                "numero_recepcion": recepcion.numero_recepcion,
+                "estado": recepcion.estado,
+                "fecha_creacion": recepcion.fecha_creacion.isoformat() if recepcion.fecha_creacion else None,
+                "items": [{"id": m.id, "item_numero": m.item_numero} for m in muestras]
+            })
+        
+        return {
+            "total_ordenes": total_recepciones,
+            "ordenes_pendientes": recepciones_pendientes,
+            "ordenes_completadas": recepciones_completadas,
+            "total_items": total_muestras,
+            "ordenes_recientes": ordenes_recientes
+        }
+    except Exception as e:
+        app_logger.error(f"Error obteniendo estadísticas del dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {str(e)}")
+
 @app.options("/api/ordenes/")
 async def options_crear_recepcion():
     """Manejar peticiones OPTIONS para CORS"""
@@ -324,12 +371,25 @@ async def crear_recepcion_muestra(
     except DuplicateRecepcionError as e:
         app_logger.error(f"Recepción duplicada: {e.message}")
         raise HTTPException(status_code=409, detail=e.message)
+    except ValueError as e:
+        # Capturar ValueError que puede ser lanzado por el servicio (ej: recepción duplicada)
+        error_message = str(e)
+        if "Ya existe una recepción" in error_message or "número OT" in error_message:
+            app_logger.error(f"Recepción duplicada: {error_message}")
+            raise HTTPException(status_code=409, detail=error_message)
+        else:
+            app_logger.error(f"Error de validación: {error_message}")
+            raise HTTPException(status_code=400, detail=error_message)
     except DatabaseError as e:
         app_logger.error(f"Error de base de datos: {e.message}")
         raise HTTPException(status_code=500, detail="Error interno de base de datos")
     except Exception as e:
         app_logger.error(f"Error inesperado: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        # Si el error contiene información sobre recepción duplicada, retornar 409
+        error_message = str(e)
+        if "Ya existe una recepción" in error_message or "número OT" in error_message:
+            raise HTTPException(status_code=409, detail=error_message)
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {error_message}")
 
 @app.get("/api/ordenes/", response_model=List[RecepcionMuestraResponse])
 async def listar_recepciones(
@@ -926,12 +986,19 @@ async def actualizar_verificacion(verificacion_id: int, update_data: Verificacio
         # Convertir Pydantic model a dict, excluyendo valores None
         update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
         
+        # Log para debugging
+        muestras_count = len(update_dict.get('muestras_verificadas', [])) if 'muestras_verificadas' in update_dict else 0
+        app_logger.info(f"Recibida actualización para verificación {verificacion_id} con {muestras_count} muestras")
+        
         verificacion = verificacion_service.actualizar_verificacion(verificacion_id, update_dict)
         
         if not verificacion:
             raise HTTPException(status_code=404, detail="Verificación no encontrada")
         
-        app_logger.info(f"Verificación actualizada: {verificacion.numero_verificacion}")
+        # Verificar cuántas muestras tiene después de actualizar
+        muestras_finales = len(verificacion.muestras_verificadas) if verificacion.muestras_verificadas else 0
+        app_logger.info(f"Verificación {verificacion.numero_verificacion} actualizada. Muestras finales: {muestras_finales}")
+        
         return verificacion
         
     except HTTPException:
